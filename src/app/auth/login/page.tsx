@@ -57,8 +57,7 @@ function LoginContent() {
     } else {
       setLoginState('success')
       setTimeout(() => {
-        router.push('/dashboard')
-        router.refresh()
+        window.location.href = '/dashboard'
       }, 1500)
     }
   }
