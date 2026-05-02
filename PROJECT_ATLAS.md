@@ -6,7 +6,8 @@ This file serves as a high-signal index and "Atlas" for AI agents operating on t
 - **Name:** `obsidian_point`
 - **Location:** `~/Projects/obsidian_point`
 - **Purpose:** (Pending detailed requirements) - Initialized as a web/agentic project platform.
-- **Production URL:** [https://obsidianpoint.vercel.app](https://obsidianpoint.vercel.app)
+- **Production URL:** [https://obsidianpoint.co](https://obsidianpoint.co) (Primary)
+- **Vercel URL:** [https://obsidianpoint.vercel.app](https://obsidianpoint.vercel.app) (Legacy)
 
 ## 🛠 Tech Stack & Environment
 - **Framework:** Next.js 16.2.4 (App Router)
