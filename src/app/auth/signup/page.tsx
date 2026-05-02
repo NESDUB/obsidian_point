@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Check, TriangleAlert, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import ObsidianLogoAsset from '@/components/ObsidianLogoAsset'
 
 type SignupState = 'idle' | 'loading' | 'success' | 'error'
 
@@ -133,13 +134,8 @@ export default function SignupPage() {
               <div className="mt-8 h-px w-28 bg-gradient-to-r from-[#F3EFE7]/50 to-transparent" />
             </div>
 
-            <div className="relative h-[310px] w-full overflow-hidden border border-white/[0.045] bg-[#15171a]">
-              <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,.055)_46%,transparent_47%),linear-gradient(45deg,transparent_0%,rgba(255,255,255,.03)_62%,transparent_63%)]" />
-              <div className="absolute left-1/2 top-1/2 h-[210px] w-[150px] -translate-x-1/2 -translate-y-1/2">
-                <div className="absolute left-0 bottom-0 h-full w-[66px] [clip-path:polygon(100%_0,100%_100%,0_100%,24%_54%)] bg-gradient-to-br from-[#f4efe6]/30 via-[#2c3034] to-[#030405] shadow-[inset_1px_0_0_rgba(255,255,255,.35),inset_-1px_0_0_rgba(255,255,255,.09)]" />
-                <div className="absolute right-0 bottom-0 h-full w-[66px] [clip-path:polygon(0_0,100%_100%,0_100%,0_0,76%_54%)] bg-gradient-to-bl from-[#f4efe6]/30 via-[#2c3034] to-[#030405] shadow-[inset_-1px_0_0_rgba(255,255,255,.35),inset_1px_0_0_rgba(255,255,255,.09)]" />
-                <div className="absolute left-[70px] top-0 h-full w-[10px] bg-[#101214] shadow-[0_0_18px_rgba(255,255,255,.10)]" />
-              </div>
+            <div className="relative h-[310px] w-full overflow-hidden border border-white/[0.045] bg-[#15171a] flex items-center justify-center">
+              <ObsidianLogoAsset height={210} />
               <div className="absolute inset-x-10 bottom-8 flex items-center justify-between text-[9px] uppercase tracking-[0.28em] text-white/20">
                 <span>Identity Provisioning</span>
                 <span>04</span>
