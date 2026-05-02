@@ -21,8 +21,15 @@ This file serves as a high-signal index and "Atlas" for AI agents operating on t
 - **Branch Strategy:** `main` (Production)
 
 ## 📁 Project Structure (High-Level)
-- `README.md`: Basic project introduction.
-- `PROJECT_ATLAS.md`: This file (Project metadata and AI context).
+- `src/`: Source code (Next.js App Router)
+- `public/`: Static assets
+- `PROJECT_ATLAS.md`: This file (Project metadata and AI context)
+- `package.json`: Project dependencies and scripts
+- `pnpm-lock.yaml`: Dependency lockfile
+- `.gitignore`: Git exclusion rules
+- `next.config.ts`: Next.js configuration
+- `tsconfig.json`: TypeScript configuration
+- `README.md`: Project documentation
 
 ---
 *Note: This file should be updated whenever significant architectural changes, new tools, or core modules are added.*
