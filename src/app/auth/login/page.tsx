@@ -75,7 +75,7 @@ function LoginContent() {
           initial={{ letterSpacing: "0.2em", opacity: 0 }}
           animate={{ letterSpacing: "0.6em", opacity: 1 }}
           transition={{ duration: 1.2, delay: 0.2 }}
-          className="text-sm font-light tracking-[0.6em] uppercase text-[#E5E5E5]"
+          className="text-sm font-light tracking-[0.6em] pl-[0.6em] uppercase text-[#E5E5E5]"
         >
           Obsidian Point
         </motion.h1>

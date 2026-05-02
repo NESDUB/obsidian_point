@@ -10,7 +10,7 @@ export default async function Home() {
 
         {/* Top Header Rail */}
         <div className="flex items-center justify-center pt-10 pb-5 border-b border-white/[0.03]">
-          <h1 className="text-sm font-light tracking-[0.6em] uppercase text-[#E5E5E5]">
+          <h1 className="text-sm font-light tracking-[0.6em] pl-[0.6em] uppercase text-[#E5E5E5]">
             Obsidian Point
           </h1>
         </div>
