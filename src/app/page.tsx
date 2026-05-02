@@ -1,34 +1,40 @@
-import { createClient } from '@/lib/supabase/server'
+import { getUser } from '@/lib/supabase/auth'
+import Link from 'next/link'
 
 export default async function Home() {
-  const supabase = await createClient()
-  
-  // Simple test query – just to confirm connection works
-  const { data: test, error } = await supabase
-    .from('test_connection')
-    .select('count', { count: 'exact', head: true })
-    .limit(0)
+  const user = await getUser()
 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black p-8 h-screen">
+    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black p-8 h-screen text-black dark:text-white">
       <main className="max-w-3xl w-full text-center">
-        <h1 className="text-4xl font-semibold mb-4 text-black dark:text-white">obsidian_point</h1>
-        <p className="text-xl text-zinc-600 dark:text-zinc-400 mb-8">
-          Connected to Supabase ✅
-        </p>
+        <h1 className="text-4xl font-semibold mb-4">obsidian_point</h1>
         
-        {error ? (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-             <p className="text-red-500 font-medium">Connection test status:</p>
-             <p className="text-red-600 text-sm mt-1">{error.message}</p>
-             <p className="text-zinc-500 text-xs mt-2 italic">(Note: This is expected if 'test_connection' table doesn't exist yet, but it proves the client is reaching Supabase.)</p>
+        {user ? (
+          <div>
+            <p className="text-green-500 mb-8 font-medium italic">✅ Signed in as {user.email}</p>
+            <Link
+              href="/dashboard"
+              className="inline-block px-8 py-4 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-semibold transition-all hover:scale-105 active:scale-95"
+            >
+              Go to Dashboard
+            </Link>
           </div>
         ) : (
-          <p className="text-green-500 font-medium">Supabase connection successful!</p>
+          <div className="space-y-8">
+            <p className="text-xl text-zinc-600 dark:text-zinc-400">
+              Connected to Supabase + Auth ready
+            </p>
+            <Link
+              href="/auth/login"
+              className="inline-block px-10 py-5 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold text-xl transition-all hover:scale-105 active:scale-95 shadow-xl"
+            >
+              Sign in / Sign up
+            </Link>
+          </div>
         )}
-        
-        <p className="mt-8 text-sm text-zinc-500">
-          Project is live on Vercel and Supabase
+
+        <p className="mt-12 text-sm text-zinc-500 font-light">
+          Built with Next.js, Vercel & Supabase
         </p>
       </main>
     </div>
