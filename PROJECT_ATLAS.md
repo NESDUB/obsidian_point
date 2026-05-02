@@ -6,10 +6,13 @@ This file serves as a high-signal index and "Atlas" for AI agents operating on t
 - **Name:** `obsidian_point`
 - **Location:** `~/Projects/obsidian_point`
 - **Purpose:** (Pending detailed requirements) - Initialized as a web/agentic project platform.
+- **Production URL:** [https://obsidianpoint.vercel.app](https://obsidianpoint.vercel.app)
 
 ## 🛠 Tech Stack & Environment
+- **Framework:** Next.js 16.2.4 (App Router)
+- **UI:** React 19.2.4, Tailwind CSS 4.2.4
 - **Runtime:** Node.js (v25.9.0)
-- **Package Manager:** `npm` (v11.12.1)
+- **Package Manager:** `pnpm` (v10.33.2)
 - **Primary CLI Tools:**
   - `git`: Version control
   - `gh`: GitHub CLI (Active Account: `NESDUB`)
@@ -17,7 +20,7 @@ This file serves as a high-signal index and "Atlas" for AI agents operating on t
 
 ## 🌐 Infrastructure State
 - **GitHub Repository:** [NESDUB/obsidian_point](https://github.com/NESDUB/obsidian_point)
-- **Vercel Status:** Authenticated, Plugin installed for Claude Code environment.
+- **Vercel Status:** Connected & Deployed. Plugin installed for Claude Code environment.
 - **Branch Strategy:** `main` (Production)
 
 ## 📁 Project Structure (High-Level)
@@ -25,7 +28,7 @@ This file serves as a high-signal index and "Atlas" for AI agents operating on t
 - `public/`: Static assets
 - `PROJECT_ATLAS.md`: This file (Project metadata and AI context)
 - `package.json`: Project dependencies and scripts
-- `pnpm-lock.yaml`: Dependency lockfile
+- `pnpm-lock.yaml`: Dependency lockfile (Blacklisted in `bin/lines`)
 - `.gitignore`: Git exclusion rules
 - `next.config.ts`: Next.js configuration
 - `tsconfig.json`: TypeScript configuration
