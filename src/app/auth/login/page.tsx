@@ -253,11 +253,6 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                <div className="text-center pt-2">
-                  <Link href="/auth/signup" className="text-[10px] uppercase tracking-[0.2em] text-[#9A948A]/55 hover:text-[#F3EFE7] transition-colors">
-                    Create new identity
-                  </Link>
-                </div>
               </motion.form>
             </div>
           </div>
