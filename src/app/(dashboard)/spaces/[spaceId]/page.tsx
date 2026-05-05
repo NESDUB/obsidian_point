@@ -30,6 +30,15 @@ export default async function SpacePage({ params }: { params: Promise<{ spaceId:
           <h3 className="text-[#ECE8DF] font-medium mb-1">HTML Viewer</h3>
           <p className="text-[#9A948A] text-xs">CodePen-style editor with live preview</p>
         </Link>
+
+        <Link
+          href={`/spaces/${spaceId}/library`}
+          className="group p-6 border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.14] rounded-xl transition-all duration-200"
+        >
+          <div className="text-2xl mb-3">📂</div>
+          <h3 className="text-[#ECE8DF] font-medium mb-1">File Library</h3>
+          <p className="text-[#9A948A] text-xs">Browse and preview your HTML file collection</p>
+        </Link>
       </div>
     </div>
   )

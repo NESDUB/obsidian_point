@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import CodeEditor from '@/components/editor/CodeEditor'
 import LivePreview from '@/components/preview/LivePreview'
@@ -40,12 +40,29 @@ export default function ViewerPage() {
   const [html, setHtml] = useState(DEFAULT_HTML)
   const [css, setCss] = useState(DEFAULT_CSS)
   const [js, setJs] = useState(DEFAULT_JS)
+  const [title, setTitle] = useState('Untitled')
+
+  // Load file passed from library
+  useEffect(() => {
+    const raw = sessionStorage.getItem('op_viewer_file')
+    if (raw) {
+      try {
+        const file = JSON.parse(raw)
+        if (file.html !== undefined) setHtml(file.html)
+        if (file.css !== undefined) setCss(file.css)
+        if (file.js !== undefined) setJs(file.js)
+        if (file.name) setTitle(file.name)
+      } catch {}
+      sessionStorage.removeItem('op_viewer_file')
+    }
+  }, [])
 
   return (
     <div className="h-screen flex flex-col bg-[#111316]">
       {/* Toolbar */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-white/[0.06] shrink-0">
         <span className="text-[10px] uppercase tracking-[0.28em] text-[#9A948A]/60">Viewer</span>
+        <span className="text-[#ECE8DF]/60 text-[11px] ml-2">{title}</span>
       </div>
 
       {/* Split */}
