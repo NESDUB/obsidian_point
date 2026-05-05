@@ -77,16 +77,19 @@ export default function ViewerPage() {
   }, [])
 
   return (
-    <div ref={containerRef} className="h-screen flex flex-col bg-[#111316]">
+    <div ref={containerRef} className="h-full flex flex-col bg-bone">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] shrink-0">
-        <span className="text-[10px] uppercase tracking-[0.28em] text-[#9A948A]/60">Viewer</span>
-        <span className="text-[#ECE8DF]/60 text-[11px]">{title}</span>
+      <div className="h-[var(--spacing-bar)] flex items-center border-b border-ink bg-bone-dim shrink-0 font-mono text-[8px] tracking-[0.16em] uppercase">
+        <div className="px-3 border-r border-ink h-full flex items-center gap-2">
+          <div className="w-1 h-1 bg-ink shrink-0" />
+          <b className="font-sans text-[10px] tracking-widest">Live Preview</b>
+          <span className="text-ink-faint truncate max-w-[200px]">/ {title}</span>
+        </div>
 
         <button
           onClick={toggleFullscreen}
           title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
-          className="ml-auto text-[#9A948A]/50 hover:text-[#ECE8DF] transition-colors p-1 rounded"
+          className="ml-auto h-full px-3 border-l border-ink text-ink-faint hover:bg-ink hover:text-bone transition-colors"
         >
           {isFullscreen ? (
             // Compress icon
@@ -112,18 +115,18 @@ export default function ViewerPage() {
             <Panel defaultSize={40} minSize={10}>
               <CodeEditor label="HTML" language="html" value={html} onChange={setHtml} />
             </Panel>
-            <Separator className="h-[3px] bg-white/[0.04] hover:bg-white/[0.12] transition-colors cursor-row-resize" />
+            <Separator className="h-[2px] bg-ink/10 hover:bg-ink/30 transition-colors cursor-row-resize" />
             <Panel defaultSize={35} minSize={10}>
               <CodeEditor label="CSS" language="css" value={css} onChange={setCss} />
             </Panel>
-            <Separator className="h-[3px] bg-white/[0.04] hover:bg-white/[0.12] transition-colors cursor-row-resize" />
+            <Separator className="h-[2px] bg-ink/10 hover:bg-ink/30 transition-colors cursor-row-resize" />
             <Panel defaultSize={25} minSize={10}>
               <CodeEditor label="JS" language="javascript" value={js} onChange={setJs} />
             </Panel>
           </Group>
         </Panel>
 
-        <Separator className="w-[3px] bg-white/[0.04] hover:bg-white/[0.12] transition-colors cursor-col-resize" />
+        <Separator className="w-[2px] bg-ink/10 hover:bg-ink/30 transition-colors cursor-col-resize" />
 
         {/* Preview column */}
         <Panel defaultSize={58} minSize={30}>

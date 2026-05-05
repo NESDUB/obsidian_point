@@ -19,12 +19,12 @@ interface CodeEditorProps {
 
 const theme = EditorView.theme({
   '&': { background: 'transparent', height: '100%' },
-  '.cm-scroller': { fontFamily: "'Berkeley Mono', 'Fira Mono', monospace", fontSize: '12.5px', lineHeight: '1.6' },
-  '.cm-gutters': { background: '#0e1012', borderRight: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.2)' },
-  '.cm-activeLineGutter': { background: 'rgba(255,255,255,0.04)' },
-  '.cm-activeLine': { background: 'rgba(255,255,255,0.03)' },
-  '.cm-cursor': { borderLeftColor: '#ECE8DF' },
-  '.cm-selectionBackground': { background: 'rgba(255,255,255,0.1) !important' },
+  '.cm-scroller': { fontFamily: "var(--font-mono, 'DM Mono', monospace)", fontSize: '12px', lineHeight: '1.65' },
+  '.cm-gutters': { background: '#D1D0CC', borderRight: '1px solid rgba(20,20,20,0.15)', color: 'rgba(20,20,20,0.35)' },
+  '.cm-activeLineGutter': { background: 'rgba(20,20,20,0.06)' },
+  '.cm-activeLine': { background: 'rgba(20,20,20,0.04)' },
+  '.cm-cursor': { borderLeftColor: '#141414' },
+  '.cm-selectionBackground': { background: 'rgba(20,20,20,0.12) !important' },
 })
 
 function getExtension(language: Language) {
@@ -43,16 +43,16 @@ const LABELS: Record<Language, string> = {
 
 export default function CodeEditor({ value, language, onChange, label }: CodeEditorProps) {
   return (
-    <div className="flex flex-col h-full min-h-0 border-b border-white/[0.06] last:border-b-0">
-      <div className="px-4 py-1.5 bg-[#0e1012] border-b border-white/[0.06] flex items-center justify-between shrink-0">
-        <span className="text-[9px] uppercase tracking-[0.28em] text-[#9A948A]/60">{label || LABELS[language]}</span>
+    <div className="flex flex-col h-full min-h-0 border-b border-ink/10 last:border-b-0">
+      <div className="px-3 h-6 bg-bone-dim border-b border-ink flex items-center justify-between shrink-0">
+        <span className="font-mono text-[8px] uppercase tracking-[0.28em] text-ink-faint font-bold">{label || LABELS[language]}</span>
       </div>
-      <div className="flex-1 min-h-0 overflow-auto bg-[#0e1012]">
+      <div className="flex-1 min-h-0 overflow-auto bg-paper">
         <CodeMirror
           value={value}
           extensions={[getExtension(language), theme]}
           onChange={onChange}
-          theme="dark"
+          theme="light"
           height="100%"
           style={{ height: '100%' }}
           basicSetup={{

@@ -14,28 +14,37 @@ export default async function DashboardHub() {
     .order('created_at', { ascending: true })
 
   return (
-    <div className="p-10 max-w-4xl">
-      <h1 className="text-3xl font-light tracking-tight text-[#ECE8DF] mb-1">
-        Your Spaces
-      </h1>
-      <p className="text-[#9A948A] text-sm mb-10">Private workspace</p>
+    <div className="p-6 md:p-10 max-w-5xl">
+      {/* Header */}
+      <div className="mb-8 border-b border-ink pb-4">
+        <p className="font-mono text-[9px] tracking-[0.28em] text-ink-faint uppercase mb-1">§ 00 · Hub</p>
+        <h1 className="text-[28px] font-extrabold tracking-tight uppercase leading-none">Your Spaces</h1>
+      </div>
 
       {spaces && spaces.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {spaces.map((space) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0 border-l border-t border-ink">
+          {spaces.map((space, i) => (
             <Link
               key={space.id}
               href={`/spaces/${space.id}`}
-              className="group p-6 border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.14] rounded-xl transition-all duration-200"
+              className="group border-r border-b border-ink p-5 hover:bg-ink hover:text-bone transition-colors"
             >
-              <div className="text-3xl mb-4">{space.emoji}</div>
-              <h3 className="text-[#ECE8DF] font-medium">{space.name}</h3>
+              <div className="flex items-start justify-between mb-6">
+                <span className="font-mono text-[9px] text-ink-faint group-hover:text-bone/50 tracking-widest">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <div className="px-1.5 h-4 border border-current font-mono text-[7px] flex items-center uppercase">SPC</div>
+              </div>
+              <div className="text-2xl mb-2">{space.emoji}</div>
+              <h3 className="font-extrabold text-[11px] tracking-[0.18em] uppercase">{space.name}</h3>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="border border-dashed border-white/[0.1] rounded-xl p-12 text-center">
-          <p className="text-[#9A948A] text-sm">No spaces yet. Use the + button in the sidebar to create one.</p>
+        <div className="border border-ink border-dashed p-12 text-center">
+          <p className="font-mono text-[9px] text-ink-faint tracking-widest uppercase">
+            No spaces — use the + in the rail to create one
+          </p>
         </div>
       )}
     </div>

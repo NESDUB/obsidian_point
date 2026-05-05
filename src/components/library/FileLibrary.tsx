@@ -114,53 +114,63 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
   return (
     <div className="flex h-full min-h-0">
       {/* Sidebar */}
-      <div className="w-64 shrink-0 border-r border-white/[0.06] flex flex-col">
+      <div className="w-[272px] shrink-0 border-r border-ink flex flex-col bg-paper">
 
         {/* Search */}
-        <div className="p-3 border-b border-white/[0.06]">
+        <div className="h-[var(--spacing-bar)] border-b border-ink flex items-center font-mono text-[8px] tracking-widest">
+          <span className="w-[54px] h-full flex items-center px-2.5 border-r border-ink text-ink-faint uppercase text-[8px]">find</span>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search…"
-            className="w-full bg-white/[0.05] rounded-lg px-3 py-1.5 text-[12px] text-[#ECE8DF] placeholder:text-[#9A948A]/50 outline-none focus:bg-white/[0.08] transition-colors"
+            placeholder="filter…"
+            className="flex-1 h-full px-2.5 bg-transparent outline-none text-[10px] uppercase tracking-widest"
           />
         </div>
 
         {/* Upload */}
-        <div {...getRootProps()} className="px-3 py-2 border-b border-white/[0.06]">
+        <div {...getRootProps()} className="border-b border-ink">
           <input {...getInputProps()} />
           <button
-            className={`w-full py-2 rounded-lg text-[11px] font-medium transition-colors border border-dashed ${
+            className={`w-full h-[var(--spacing-bar)] font-mono text-[8px] tracking-[0.18em] uppercase transition-colors ${
               isDragActive
-                ? 'border-[#ECE8DF]/60 bg-white/10 text-[#ECE8DF]'
-                : 'border-white/[0.12] text-[#9A948A] hover:text-[#ECE8DF] hover:border-white/30'
+                ? 'bg-ink text-bone'
+                : 'text-ink-faint hover:bg-ink hover:text-bone'
             }`}
           >
-            {uploading ? 'Importing…' : isDragActive ? 'Drop to import' : '+ Import .html'}
+            {uploading ? '· importing ·' : isDragActive ? '· drop to import ·' : '+ import .html'}
           </button>
         </div>
 
+        {/* Section header */}
+        <div className="h-6 flex items-center justify-between px-2.5 border-b border-ink bg-bone-dim font-mono text-[8px] tracking-widest text-ink-faint uppercase sticky top-0">
+          <span>§ Active Files</span>
+          <span>{String(filtered.length).padStart(2, '0')}</span>
+        </div>
+
         {/* File list */}
-        <div className="flex-1 overflow-auto py-1">
+        <div className="flex-1 overflow-auto bg-bone-soft">
           {loading ? (
-            <p className="text-[#9A948A]/40 text-xs px-4 py-3">Loading…</p>
+            <p className="font-mono text-[8px] text-ink-faint tracking-widest uppercase px-2.5 py-3">Loading…</p>
           ) : filtered.length === 0 ? (
-            <p className="text-[#9A948A]/40 text-xs px-4 py-3 italic">
+            <p className="font-mono text-[8px] text-ink-faint tracking-widest uppercase px-2.5 py-3 italic">
               {files.length === 0 ? 'Drop .html files to import' : 'No results'}
             </p>
           ) : (
-            filtered.map(file => (
+            filtered.map((file, i) => (
               <div
                 key={file.id}
                 onClick={() => renamingId !== file.id && setSelected(file)}
-                className={`group flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${
+                className={`group h-[42px] grid grid-cols-[34px_1fr_auto] items-center gap-2 px-2.5 border-b border-ink/10 cursor-pointer transition-colors ${
                   selected?.id === file.id
-                    ? 'bg-white/[0.08] text-[#ECE8DF]'
-                    : 'text-[#9A948A] hover:bg-white/[0.04] hover:text-[#ECE8DF]'
+                    ? 'bg-ink text-bone'
+                    : 'hover:bg-ink/5 text-ink'
                 }`}
               >
+                <span className={`font-mono text-[9px] ${selected?.id === file.id ? 'text-bone/50' : 'text-ink-faint'}`}>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+
                 {renamingId === file.id ? (
-                  // Inline rename input
                   <input
                     ref={renameInputRef}
                     value={renameValue}
@@ -171,36 +181,22 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
                     }}
                     onBlur={() => commitRename(file.id)}
                     onClick={e => e.stopPropagation()}
-                    className="flex-1 bg-white/[0.08] border border-white/20 rounded px-2 py-0.5 text-[12px] text-[#ECE8DF] outline-none min-w-0"
+                    className="flex-1 bg-bone border border-ink px-1.5 py-0.5 font-mono text-[10px] outline-none uppercase tracking-wider min-w-0"
                   />
                 ) : (
-                  <>
-                    <span className="text-[12px] truncate flex-1">{file.name}</span>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1">
-                      <button
-                        onClick={e => { e.stopPropagation(); startRename(file) }}
-                        title="Rename"
-                        className="text-[11px] w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                      >
-                        ✎
-                      </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); openInViewer(file) }}
-                        title="Open in viewer"
-                        className="text-[11px] w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                      >
-                        ↗
-                      </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteFile(file.id) }}
-                        title="Delete"
-                        className="text-[11px] w-5 h-5 flex items-center justify-center rounded hover:bg-red-500/20 hover:text-red-400 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-extrabold tracking-wider leading-tight truncate uppercase">{file.name}</div>
+                  </div>
                 )}
+
+                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <button onClick={e => { e.stopPropagation(); startRename(file) }} title="Rename"
+                    className="w-5 h-5 flex items-center justify-center font-mono text-[10px] hover:bg-ink/10 transition-colors">✎</button>
+                  <button onClick={e => { e.stopPropagation(); openInViewer(file) }} title="Open in viewer"
+                    className="w-5 h-5 flex items-center justify-center font-mono text-[10px] hover:bg-ink/10 transition-colors">↗</button>
+                  <button onClick={e => { e.stopPropagation(); deleteFile(file.id) }} title="Delete"
+                    className="w-5 h-5 flex items-center justify-center font-mono text-[10px] hover:bg-oxide hover:text-bone transition-colors">✕</button>
+                </div>
               </div>
             ))
           )}
@@ -216,8 +212,8 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
             js={selected.js_content}
           />
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-[#9A948A]/40 text-sm">Select a file to preview</p>
+          <div className="h-full flex items-center justify-center mesh-overlay">
+            <p className="relative z-10 font-mono text-[9px] text-ink-faint tracking-widest uppercase">Select a file to preview</p>
           </div>
         )}
       </div>

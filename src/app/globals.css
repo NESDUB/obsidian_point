@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Fonts */
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Palette */
+  --color-bone:      #E4E3E0;
+  --color-bone-dim:  #D1D0CC;
+  --color-bone-soft: #ECEBE7;
+  --color-paper:     #F0EFEC;
+  --color-ink:       #141414;
+  --color-ink-soft:  rgba(20,20,20,0.72);
+  --color-ink-faint: rgba(20,20,20,0.42);
+  --color-oxide:     #A54531;
+  --color-navy:      #3A4A5E;
+
+  /* Layout tokens */
+  --spacing-rail: 42px;
+  --spacing-bar:  28px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html, body {
+    @apply bg-bone text-ink font-sans antialiased overflow-hidden h-full;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Cross-hatch + pixel dot mesh */
+  .mesh-overlay {
+    position: relative;
+  }
+  .mesh-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url('data:image/svg+xml;utf8,<svg width="58" height="58" xmlns="http://www.w3.org/2000/svg"><path d="M29 25v8M25 29h8" stroke="%23141414" stroke-width="1.3" stroke-opacity="0.10"/></svg>');
+    pointer-events: none;
+    z-index: 0;
+  }
+  .mesh-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url('data:image/svg+xml;utf8,<svg width="3" height="3" xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1" fill="%23141414" fill-opacity="0.14"/></svg>');
+    background-size: 3px 3px;
+    image-rendering: pixelated;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* CRT scanline on preview areas */
+  .scanline::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(20,20,20,0.04) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .hairline      { @apply border border-ink; }
+  .hairline-soft { @apply border border-ink/10; }
 }
