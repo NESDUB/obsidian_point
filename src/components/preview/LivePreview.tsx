@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useMemo, useState } from 'react'
 
 interface LivePreviewProps {
   html: string
@@ -56,30 +56,44 @@ export default function LivePreview({
   html,
   css,
   js,
-  externalScripts = [],
-  externalCSS = [],
+  externalScripts,
+  externalCSS,
 }: LivePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [logs, setLogs] = useState<ConsoleEntry[]>([])
   const [consoleOpen, setConsoleOpen] = useState(false)
 
+  // Stable serialized deps — prevents new [] reference on every render from causing loops
+  const externalScriptsKey = JSON.stringify(externalScripts ?? [])
+  const externalCSSKey = JSON.stringify(externalCSS ?? [])
+
+  const srcdoc = useMemo(() => {
+    return buildDocument(
+      html, css, js,
+      externalScripts ?? [],
+      externalCSS ?? [],
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [html, css, js, externalScriptsKey, externalCSSKey])
+
   useEffect(() => {
     const iframe = iframeRef.current
     if (!iframe) return
-    iframe.srcdoc = buildDocument(html, css, js, externalScripts, externalCSS)
+    iframe.srcdoc = srcdoc
     setLogs([])
-  }, [html, css, js, externalScripts, externalCSS])
+  }, [srcdoc])
 
+  // Stable message listener — no deps that change on every render
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (!e.data?.__op_console) return
       const time = new Date().toLocaleTimeString('en-US', { hour12: false })
       setLogs(prev => [...prev.slice(-199), { type: e.data.type, message: e.data.args.join(' '), time }])
-      if (!consoleOpen) setConsoleOpen(true)
+      setConsoleOpen(true)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [consoleOpen])
+  }, []) // intentionally empty — handler uses functional setState, no stale closure
 
   return (
     <div className="flex flex-col h-full bg-white">
