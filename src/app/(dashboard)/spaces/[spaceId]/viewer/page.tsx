@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import CodeEditor from '@/components/editor/CodeEditor'
 import LivePreview from '@/components/preview/LivePreview'
@@ -41,6 +41,8 @@ export default function ViewerPage() {
   const [css, setCss] = useState(DEFAULT_CSS)
   const [js, setJs] = useState(DEFAULT_JS)
   const [title, setTitle] = useState('Untitled')
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Load file passed from library
   useEffect(() => {
@@ -57,12 +59,49 @@ export default function ViewerPage() {
     }
   }, [])
 
+  // Sync fullscreen state with browser
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen()
+    } else {
+      document.exitFullscreen()
+    }
+  }, [])
+
   return (
-    <div className="h-screen flex flex-col bg-[#111316]">
+    <div ref={containerRef} className="h-screen flex flex-col bg-[#111316]">
       {/* Toolbar */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-white/[0.06] shrink-0">
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] shrink-0">
         <span className="text-[10px] uppercase tracking-[0.28em] text-[#9A948A]/60">Viewer</span>
-        <span className="text-[#ECE8DF]/60 text-[11px] ml-2">{title}</span>
+        <span className="text-[#ECE8DF]/60 text-[11px]">{title}</span>
+
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+          className="ml-auto text-[#9A948A]/50 hover:text-[#ECE8DF] transition-colors p-1 rounded"
+        >
+          {isFullscreen ? (
+            // Compress icon
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+              <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
+            </svg>
+          ) : (
+            // Expand icon
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* Split */}

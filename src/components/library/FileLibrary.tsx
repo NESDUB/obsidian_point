@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -23,6 +23,9 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
   const [selected, setSelected] = useState<HtmlFile | null>(null)
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -37,6 +40,11 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
   }
 
   useEffect(() => { loadFiles() }, [spaceId])
+
+  // Focus rename input when it appears
+  useEffect(() => {
+    if (renamingId) renameInputRef.current?.select()
+  }, [renamingId])
 
   const onDrop = useCallback(async (accepted: File[]) => {
     if (!accepted.length) return
@@ -61,7 +69,7 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'text/html': ['.html', '.htm'] },
-    noClick: files.length > 0, // only click-to-open when empty
+    noClick: files.length > 0,
   })
 
   const filtered = files.filter(f =>
@@ -74,8 +82,26 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
     setFiles(prev => prev.filter(f => f.id !== id))
   }
 
+  function startRename(file: HtmlFile) {
+    setRenamingId(file.id)
+    setRenameValue(file.name)
+  }
+
+  async function commitRename(id: string) {
+    const trimmed = renameValue.trim()
+    if (!trimmed) { cancelRename(); return }
+    await supabase.from('html_files').update({ name: trimmed }).eq('id', id)
+    setFiles(prev => prev.map(f => f.id === id ? { ...f, name: trimmed } : f))
+    if (selected?.id === id) setSelected(prev => prev ? { ...prev, name: trimmed } : prev)
+    setRenamingId(null)
+  }
+
+  function cancelRename() {
+    setRenamingId(null)
+    setRenameValue('')
+  }
+
   function openInViewer(file: HtmlFile) {
-    // Store in sessionStorage so the viewer can pick it up
     sessionStorage.setItem('op_viewer_file', JSON.stringify({
       html: file.html_content,
       css: file.css_content,
@@ -87,12 +113,8 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
 
   return (
     <div className="flex h-full min-h-0">
-      {/* Sidebar: file list */}
-      <div
-        {...(files.length === 0 ? getRootProps() : {})}
-        className="w-64 shrink-0 border-r border-white/[0.06] flex flex-col"
-      >
-        {files.length === 0 && <input {...getInputProps()} />}
+      {/* Sidebar */}
+      <div className="w-64 shrink-0 border-r border-white/[0.06] flex flex-col">
 
         {/* Search */}
         <div className="p-3 border-b border-white/[0.06]">
@@ -104,7 +126,7 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
           />
         </div>
 
-        {/* Upload button (always available) */}
+        {/* Upload */}
         <div {...getRootProps()} className="px-3 py-2 border-b border-white/[0.06]">
           <input {...getInputProps()} />
           <button
@@ -130,30 +152,55 @@ export default function FileLibrary({ spaceId }: { spaceId: string }) {
             filtered.map(file => (
               <div
                 key={file.id}
-                onClick={() => setSelected(file)}
-                className={`group flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors ${
+                onClick={() => renamingId !== file.id && setSelected(file)}
+                className={`group flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${
                   selected?.id === file.id
                     ? 'bg-white/[0.08] text-[#ECE8DF]'
                     : 'text-[#9A948A] hover:bg-white/[0.04] hover:text-[#ECE8DF]'
                 }`}
               >
-                <span className="text-[12px] truncate">{file.name}</span>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
-                  <button
-                    onClick={e => { e.stopPropagation(); openInViewer(file) }}
-                    title="Open in viewer"
-                    className="text-[10px] px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors"
-                  >
-                    ↗
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); deleteFile(file.id) }}
-                    title="Delete"
-                    className="text-[10px] px-1.5 py-0.5 rounded hover:bg-red-500/20 hover:text-red-400 transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
+                {renamingId === file.id ? (
+                  // Inline rename input
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitRename(file.id)
+                      if (e.key === 'Escape') cancelRename()
+                    }}
+                    onBlur={() => commitRename(file.id)}
+                    onClick={e => e.stopPropagation()}
+                    className="flex-1 bg-white/[0.08] border border-white/20 rounded px-2 py-0.5 text-[12px] text-[#ECE8DF] outline-none min-w-0"
+                  />
+                ) : (
+                  <>
+                    <span className="text-[12px] truncate flex-1">{file.name}</span>
+                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1">
+                      <button
+                        onClick={e => { e.stopPropagation(); startRename(file) }}
+                        title="Rename"
+                        className="text-[11px] w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); openInViewer(file) }}
+                        title="Open in viewer"
+                        className="text-[11px] w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                      >
+                        ↗
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteFile(file.id) }}
+                        title="Delete"
+                        className="text-[11px] w-5 h-5 flex items-center justify-center rounded hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))
           )}
