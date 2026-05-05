@@ -14,7 +14,7 @@ export default async function DashboardHub() {
     .order('created_at', { ascending: true })
 
   return (
-    <div className="p-6 md:p-10 max-w-5xl">
+    <div className="h-full overflow-auto"><div className="p-6 md:p-10 max-w-5xl">
       {/* Header */}
       <div className="mb-8 border-b border-ink pb-4">
         <p className="font-mono text-[9px] tracking-[0.28em] text-ink-faint uppercase mb-1">§ 00 · Hub</p>
@@ -47,6 +47,6 @@ export default async function DashboardHub() {
           </p>
         </div>
       )}
-    </div>
+    </div></div>
   )
 }

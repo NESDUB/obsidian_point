@@ -151,8 +151,8 @@ export default function DashboardShell({ spaces, userEmail, children }: Props) {
         )}
 
         {/* ── Main Content ── */}
-        <main className="flex-1 min-w-0 min-h-0 overflow-auto relative mesh-overlay">
-          <div className="relative z-10 h-full">
+        <main className="flex-1 min-w-0 min-h-0 overflow-hidden relative mesh-overlay">
+          <div className="absolute inset-0 z-10 overflow-hidden">
             {children}
           </div>
         </main>

@@ -63,16 +63,11 @@ export default function LivePreview({
   const [logs, setLogs] = useState<ConsoleEntry[]>([])
   const [consoleOpen, setConsoleOpen] = useState(false)
 
-  // Stable serialized deps — prevents new [] reference on every render from causing loops
   const externalScriptsKey = JSON.stringify(externalScripts ?? [])
   const externalCSSKey = JSON.stringify(externalCSS ?? [])
 
   const srcdoc = useMemo(() => {
-    return buildDocument(
-      html, css, js,
-      externalScripts ?? [],
-      externalCSS ?? [],
-    )
+    return buildDocument(html, css, js, externalScripts ?? [], externalCSS ?? [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [html, css, js, externalScriptsKey, externalCSSKey])
 
@@ -83,7 +78,6 @@ export default function LivePreview({
     setLogs([])
   }, [srcdoc])
 
-  // Stable message listener — no deps that change on every render
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (!e.data?.__op_console) return
@@ -93,47 +87,50 @@ export default function LivePreview({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, []) // intentionally empty — handler uses functional setState, no stale closure
+  }, [])
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Chrome bar */}
-      <div className="flex items-center gap-1.5 px-4 py-2 bg-[#f0f0f0] border-b border-black/10 shrink-0">
-        <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-        <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-        <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-        <span className="ml-2 text-[10px] text-black/30 tracking-wide">preview</span>
-        <button
-          onClick={() => setConsoleOpen(o => !o)}
-          className="ml-auto text-[9px] uppercase tracking-widest text-black/30 hover:text-black/60 transition-colors"
-        >
-          console {logs.length > 0 && `(${logs.length})`}
-        </button>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* Preview iframe */}
       <iframe
         ref={iframeRef}
         sandbox="allow-scripts allow-modals"
-        className="flex-1 w-full border-0"
+        className="flex-1 w-full border-0 bg-white"
         title="preview"
       />
 
       {/* Console panel */}
       {consoleOpen && (
-        <div className="h-44 shrink-0 bg-[#1a1a1a] border-t border-white/10 flex flex-col">
-          <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06]">
-            <span className="text-[9px] uppercase tracking-widest text-white/30">Console</span>
-            <button onClick={() => setLogs([])} className="text-[9px] text-white/20 hover:text-white/50 transition-colors">clear</button>
+        <div className="h-40 shrink-0 bg-[#0d0d0d] border-t border-white/10 flex flex-col">
+          <div className="h-6 flex items-center justify-between px-3 border-b border-white/[0.06] shrink-0">
+            <span className="font-mono text-[8px] uppercase tracking-[0.22em] text-white/30">§ Console</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setLogs([])}
+                className="font-mono text-[8px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
+              >
+                clear
+              </button>
+              <button
+                onClick={() => setConsoleOpen(false)}
+                className="font-mono text-[8px] text-white/20 hover:text-white/50 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
           </div>
-          <div className="flex-1 overflow-auto font-mono text-[11px] p-2 space-y-0.5">
+          <div className="flex-1 overflow-auto font-mono text-[10px] leading-relaxed p-2 space-y-0.5">
             {logs.length === 0 ? (
               <p className="text-white/20 italic">no output</p>
             ) : (
               logs.map((l, i) => (
                 <div key={i} className="flex gap-3">
                   <span className="text-white/20 shrink-0">{l.time}</span>
-                  <span className={l.type === 'error' ? 'text-red-400' : l.type === 'warn' ? 'text-yellow-400' : 'text-green-400'}>
+                  <span className={
+                    l.type === 'error' ? 'text-red-400' :
+                    l.type === 'warn' ? 'text-yellow-400' :
+                    'text-emerald-400'
+                  }>
                     {l.message}
                   </span>
                 </div>
@@ -141,6 +138,16 @@ export default function LivePreview({
             )}
           </div>
         </div>
+      )}
+
+      {/* Console toggle tab — only visible when console is closed and there are logs */}
+      {!consoleOpen && logs.length > 0 && (
+        <button
+          onClick={() => setConsoleOpen(true)}
+          className="h-6 shrink-0 bg-[#0d0d0d] border-t border-white/10 w-full font-mono text-[8px] uppercase tracking-[0.22em] text-white/30 hover:text-white/60 transition-colors"
+        >
+          § Console ({logs.length})
+        </button>
       )}
     </div>
   )
