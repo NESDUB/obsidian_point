@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Command } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { parseHtmlFile } from '@/lib/parseHtmlFile'
 import CodeEditor from '@/components/editor/CodeEditor'
 import LivePreview from '@/components/preview/LivePreview'
+import { useDesktop } from './os/useDesktop'
+import { DesktopWindow } from './os/DesktopWindow'
 
 interface HtmlFile {
   id: string
@@ -18,55 +20,70 @@ interface HtmlFile {
   created_at: string
 }
 
-const DEFAULT_HTML = `<div class="card">
-  <h1>Obsidian Point</h1>
-  <p>Select a file from the registry or start editing.</p>
+const DEFAULT_HTML = `<div style="padding:48px;font-family:system-ui,sans-serif;text-align:center;color:#141414;">
+  <p style="font-size:11px;letter-spacing:.2em;opacity:.4;text-transform:uppercase;margin-bottom:12px;">OP-LAB · Desktop OS</p>
+  <h1 style="font-size:32px;font-weight:900;letter-spacing:-.01em;margin:0 0 12px;">Ready.</h1>
+  <p style="font-size:13px;opacity:.5;">Select a file from the registry to begin.</p>
 </div>`
+const DEFAULT_CSS = ''
+const DEFAULT_JS = ''
 
-const DEFAULT_CSS = `.card {
-  max-width: 480px;
-  margin: 60px auto;
-  padding: 40px;
-  background: #f9f9f9;
-  border-radius: 12px;
-  font-family: system-ui, sans-serif;
-  text-align: center;
-}
-h1 { color: #111; margin-bottom: 12px; }
-p  { color: #666; }`
-
-const DEFAULT_JS = `console.log('Studio ready')`
-
-function MetricRow({ label, value }: { label: string; value: number }) {
+function MetricBar({ label, value }: { label: string; value: number }) {
   return (
-    <div className="grid grid-cols-[40px_1fr_28px] items-center gap-2 px-3 py-1.5 border-b border-ink/10 last:border-b-0 font-mono text-[8px] tracking-wider">
+    <div className="grid grid-cols-[36px_1fr_24px] items-center gap-2 px-3 py-1.5 border-b border-ink/10 last:border-b-0 font-mono text-[8px] tracking-wider">
       <span className="text-ink-faint uppercase">{label}</span>
-      <div className="h-1 border border-ink/20 relative overflow-hidden">
-        <div
-          className="absolute inset-y-0 left-0 bg-ink transition-all duration-700 ease-out"
-          style={{ width: `${value}%` }}
-        />
+      <div className="h-1 bg-ink/10 border border-ink/10 relative overflow-hidden">
+        <div className="absolute inset-y-0 left-0 bg-ink transition-all duration-700" style={{ width: `${value}%` }} />
       </div>
       <span className="text-right text-ink-faint">{value}</span>
     </div>
   )
 }
 
-export default function CodeStudio({ spaceId, spaceName, spaceEmoji }: { spaceId: string; spaceName?: string; spaceEmoji?: string }) {
+export default function CodeStudio({
+  spaceId,
+  spaceName,
+  spaceEmoji,
+}: {
+  spaceId: string
+  spaceName?: string
+  spaceEmoji?: string
+}) {
+  const supabase = createClient()
+  const { windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleMaximize } = useDesktop()
+
   const [files, setFiles] = useState<HtmlFile[]>([])
-  const [selected, setSelected] = useState<HtmlFile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [activeFileId, setActiveFileId] = useState<string | null>(null)
   const [html, setHtml] = useState(DEFAULT_HTML)
   const [css, setCss] = useState(DEFAULT_CSS)
   const [js, setJs] = useState(DEFAULT_JS)
+  const [editorTab, setEditorTab] = useState<'html' | 'css' | 'js'>('html')
+  const [launcherOpen, setLauncherOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isEditorOpen, setIsEditorOpen] = useState(true)
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
-  const renameInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const [time, setTime] = useState('')
+
+  // Clock
+  useEffect(() => {
+    function tick() { setTime(new Date().toLocaleTimeString('en-GB', { hour12: false })) }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // ⌘K
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setLauncherOpen(o => !o)
+      }
+      if (e.key === 'Escape') setLauncherOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   async function loadFiles() {
     const { data } = await supabase
@@ -80,15 +97,14 @@ export default function CodeStudio({ spaceId, spaceName, spaceEmoji }: { spaceId
 
   useEffect(() => { loadFiles() }, [spaceId])
 
-  useEffect(() => {
-    if (renamingId) renameInputRef.current?.select()
-  }, [renamingId])
-
   function selectFile(file: HtmlFile) {
-    setSelected(file)
+    setActiveFileId(file.id)
     setHtml(file.html_content)
     setCss(file.css_content)
     setJs(file.js_content)
+    setEditorTab('html')
+    openWindow('editor', file.id, file.name)
+    openWindow('preview', file.id, `Preview · ${file.name}`)
   }
 
   const onDrop = useCallback(async (accepted: File[]) => {
@@ -111,293 +127,323 @@ export default function CodeStudio({ spaceId, spaceName, spaceEmoji }: { spaceId
     }
   }, [spaceId])
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open: openFilePicker } = useDropzone({
     onDrop,
     accept: { 'text/html': ['.html', '.htm'] },
     noClick: true,
   })
 
-  const filtered = files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-
   async function deleteFile(id: string) {
     await supabase.from('html_files').delete().eq('id', id)
-    if (selected?.id === id) {
-      setSelected(null)
+    setFiles(prev => prev.filter(f => f.id !== id))
+    if (activeFileId === id) {
+      setActiveFileId(null)
       setHtml(DEFAULT_HTML)
       setCss(DEFAULT_CSS)
       setJs(DEFAULT_JS)
     }
-    setFiles(prev => prev.filter(f => f.id !== id))
   }
 
-  function startRename(file: HtmlFile) {
-    setRenamingId(file.id)
-    setRenameValue(file.name)
-  }
+  const filtered = files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+  const activeFile = files.find(f => f.id === activeFileId)
 
-  async function commitRename(id: string) {
-    const trimmed = renameValue.trim()
-    if (!trimmed) { setRenamingId(null); return }
-    await supabase.from('html_files').update({ name: trimmed }).eq('id', id)
-    setFiles(prev => prev.map(f => f.id === id ? { ...f, name: trimmed } : f))
-    if (selected?.id === id) setSelected(prev => prev ? { ...prev, name: trimmed } : prev)
-    setRenamingId(null)
-  }
-
-  const title = selected?.name ?? 'untitled'
+  const LAUNCHER_ACTIONS = [
+    { label: 'Open File Registry',    action: () => openWindow('registry') },
+    { label: 'Import HTML File',      action: () => { openFilePicker(); setLauncherOpen(false) } },
+    { label: 'Open Preview Window',   action: () => openWindow('preview') },
+    { label: 'Open System Console',   action: () => openWindow('console') },
+  ]
 
   return (
-    <div className="h-full flex flex-col bg-bone" {...getRootProps()}>
+    <div
+      className="h-full flex flex-col bg-bone-dim select-none"
+      {...getRootProps()}
+      onClick={() => setLauncherOpen(false)}
+    >
       <input {...getInputProps()} />
 
       {/* Drag overlay */}
       {isDragActive && (
-        <div className="absolute inset-0 z-50 bg-ink/80 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-[9999] bg-ink/75 flex items-center justify-center pointer-events-none">
           <p className="font-mono text-bone text-[11px] tracking-[0.28em] uppercase">· drop to import ·</p>
         </div>
       )}
 
-      {/* Top bar */}
-      <header className="h-[var(--spacing-bar)] border-b border-ink bg-bone-dim flex items-center shrink-0 font-mono text-[8px] tracking-[0.16em] uppercase divide-x divide-ink z-10">
-        <div className="px-3 h-full flex items-center gap-2">
-          <div className="w-1 h-1 bg-ink shrink-0" />
-          <b className="font-sans text-[10px] tracking-widest">Code Studio</b>
+      {/* Top status bar */}
+      <header className="h-[var(--spacing-bar)] border-b border-ink bg-bone-dim flex items-center shrink-0 divide-x divide-ink z-50 font-mono text-[8px] tracking-[0.16em] uppercase">
+        <div className="w-10 bg-ink text-bone flex items-center justify-center font-bold shrink-0">OP</div>
+        <div className="flex-1 flex items-center px-3 gap-2 min-w-0">
+          <div className="w-1.5 h-1.5 bg-ink shrink-0" />
+          <span className="font-sans font-extrabold text-[10px] whitespace-nowrap">OP-LAB · Desktop OS</span>
+          {spaceName && (
+            <span className="text-ink-faint truncate">/ {spaceEmoji} {spaceName}</span>
+          )}
         </div>
-        <div className="flex-1 px-3 h-full flex items-center text-ink-faint truncate min-w-0 gap-2">
-          {spaceName && <span className="shrink-0">{spaceEmoji} {spaceName}</span>}
-          {spaceName && <span className="text-ink/20">/</span>}
-          <span className="truncate">{title}.html</span>
+        <div className="hidden lg:flex items-center gap-6 px-4 text-ink-faint text-[7px]">
+          <span>PROC: ARTIFACT_ENGINE</span>
+          <span>STATUS: STABLE</span>
         </div>
-        <button
-          onClick={open}
-          className="h-full px-3 text-ink-faint hover:bg-ink hover:text-bone transition-colors shrink-0"
-        >
-          {uploading ? '· importing ·' : '+ import .html'}
-        </button>
+        <div className="px-3 flex items-center gap-2 text-ink-faint text-[7px] shrink-0">
+          <div className="w-1.5 h-1.5 bg-ink animate-pulse" />
+          <span>SYNCING</span>
+        </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      {/* Desktop canvas */}
+      <div className="flex-1 relative overflow-hidden">
+        {/* Desktop texture */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-25"
+          style={{
+            backgroundImage: `url("data:image/svg+xml;utf8,<svg width='40' height='40' xmlns='http://www.w3.org/2000/svg'><path d='M20 15v10M15 20h10' stroke='%23141414' stroke-width='0.8' stroke-opacity='0.18'/></svg>"), url("data:image/svg+xml;utf8,<svg width='3' height='3' xmlns='http://www.w3.org/2000/svg'><rect width='1' height='1' fill='%23141414' fill-opacity='0.12'/></svg>")`,
+            backgroundSize: '40px 40px, 3px 3px',
+          }}
+        />
 
-        {/* Sidebar */}
-        <AnimatePresence initial={false}>
-          {isSidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 272, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'spring', bounce: 0.1, duration: 0.35 }}
-              className="border-r border-ink bg-paper flex flex-col overflow-hidden shrink-0"
+        {/* Windows */}
+        <AnimatePresence>
+          {windows.map(win => (
+            <motion.div
+              key={win.id}
+              initial={{ scale: 0.94, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240, duration: 0.15 }}
+              style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: win.z }}
             >
-              {/* Sidebar header */}
-              <div
-                className="h-[var(--spacing-bar)] border-b border-ink bg-ink text-bone flex items-center justify-between px-3 cursor-pointer select-none shrink-0"
-                onClick={() => setIsSidebarOpen(false)}
+              <DesktopWindow
+                win={win}
+                onClose={closeWindow}
+                onFocus={focusWindow}
+                onMinimize={toggleMinimize}
+                onMaximize={toggleMaximize}
+                onMove={moveWindow}
               >
-                <div>
-                  <div className="font-mono text-[8px] tracking-[0.18em] text-bone/50 mb-0.5">artifacts · private</div>
-                  <div className="font-sans font-black text-[11px] tracking-[0.14em]">Registry Space</div>
-                </div>
-                <ChevronLeft size={12} />
-              </div>
-
-              {/* Search */}
-              <div className="h-[var(--spacing-bar)] border-b border-ink flex items-center shrink-0">
-                <span className="w-[48px] h-full flex items-center justify-center border-r border-ink font-mono text-[8px] text-ink-faint italic shrink-0">find</span>
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="QUERY..."
-                  className="flex-1 h-full px-2.5 bg-transparent outline-none font-mono text-[9px] tracking-widest placeholder:text-ink/20 uppercase"
-                />
-              </div>
-
-              {/* Section label */}
-              <div className="h-6 flex items-center justify-between px-3 border-b border-ink bg-bone-dim font-mono text-[8px] tracking-widest text-ink-faint uppercase shrink-0">
-                <span>§ Active Artifacts</span>
-                <span>{String(filtered.length).padStart(2, '0')}</span>
-              </div>
-
-              {/* File list */}
-              <div className="flex-1 overflow-auto bg-bone-soft">
-                {loading ? (
-                  <p className="px-3 py-3 font-mono text-[8px] text-ink-faint tracking-widest uppercase">Loading…</p>
-                ) : filtered.length === 0 ? (
-                  <p className="px-3 py-3 font-mono text-[8px] text-ink-faint tracking-widest uppercase italic">
-                    {files.length === 0 ? 'Drop .html to import' : 'No results'}
-                  </p>
-                ) : filtered.map((file, i) => (
-                  <div
-                    key={file.id}
-                    onClick={() => renamingId !== file.id && selectFile(file)}
-                    className={`group flex items-center gap-2 px-3 h-[42px] border-b border-ink/10 cursor-pointer transition-colors ${
-                      selected?.id === file.id ? 'bg-ink text-bone' : 'hover:bg-ink/5 text-ink'
-                    }`}
-                  >
-                    <span className={`font-mono text-[9px] shrink-0 ${selected?.id === file.id ? 'text-bone/40' : 'text-ink-faint'}`}>
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-
-                    {renamingId === file.id ? (
+                {/* ── Registry ── */}
+                {win.kind === 'registry' && (
+                  <div className="h-full flex flex-col bg-paper">
+                    <div className="h-[var(--spacing-bar)] border-b border-ink flex items-center shrink-0">
+                      <span className="w-10 h-full flex items-center justify-center border-r border-ink font-mono text-[8px] text-ink-faint shrink-0 uppercase">Fnd</span>
                       <input
-                        ref={renameInputRef}
-                        value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') commitRename(file.id)
-                          if (e.key === 'Escape') setRenamingId(null)
-                        }}
-                        onBlur={() => commitRename(file.id)}
-                        onClick={e => e.stopPropagation()}
-                        className="flex-1 bg-bone border border-ink px-1.5 py-0.5 font-mono text-[9px] outline-none uppercase tracking-wider min-w-0"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Query..."
+                        className="flex-1 h-full px-2.5 bg-transparent outline-none font-mono text-[9px] tracking-widest placeholder:text-ink/20 uppercase"
                       />
-                    ) : (
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-extrabold tracking-wider leading-tight truncate uppercase">{file.name}</div>
-                      </div>
-                    )}
-
-                    <div className={`border px-1.5 py-0.5 font-mono text-[7px] tracking-wider shrink-0 transition-colors ${
-                      selected?.id === file.id ? 'border-bone/30 text-bone/50' : 'border-ink/20 text-ink-faint'
-                    }`}>
-                      HTML
                     </div>
 
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={e => { e.stopPropagation(); startRename(file) }}
-                        className="w-5 h-5 flex items-center justify-center font-mono text-[10px] hover:bg-ink/10 transition-colors"
-                        title="Rename"
-                      >✎</button>
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteFile(file.id) }}
-                        className="w-5 h-5 flex items-center justify-center font-mono text-[10px] hover:bg-oxide hover:text-bone transition-colors"
-                        title="Delete"
-                      >✕</button>
+                    <button
+                      onClick={openFilePicker}
+                      className="h-[var(--spacing-bar)] border-b border-ink font-mono text-[8px] tracking-[0.16em] uppercase text-ink-faint hover:bg-ink hover:text-bone transition-colors shrink-0"
+                    >
+                      {uploading ? '· importing ·' : '+ import .html'}
+                    </button>
+
+                    <div className="h-6 flex items-center justify-between px-3 border-b border-ink bg-bone-dim font-mono text-[8px] tracking-widest text-ink-faint uppercase shrink-0">
+                      <span>§ Active Artifacts</span>
+                      <span>{String(filtered.length).padStart(2, '0')}</span>
+                    </div>
+
+                    <div className="flex-1 overflow-auto bg-bone-soft">
+                      {loading ? (
+                        <p className="px-3 py-3 font-mono text-[8px] text-ink-faint tracking-widest uppercase">Loading…</p>
+                      ) : filtered.length === 0 ? (
+                        <p className="px-3 py-3 font-mono text-[8px] text-ink-faint tracking-widest uppercase italic">
+                          {files.length === 0 ? 'Drop .html to import' : 'No results'}
+                        </p>
+                      ) : filtered.map((file, i) => (
+                        <div
+                          key={file.id}
+                          className={`group flex items-center gap-2 px-3 h-[42px] border-b border-ink/10 cursor-pointer transition-colors ${
+                            activeFileId === file.id ? 'bg-ink text-bone' : 'hover:bg-ink/5 text-ink'
+                          }`}
+                          onClick={() => selectFile(file)}
+                        >
+                          <span className={`font-mono text-[9px] shrink-0 ${activeFileId === file.id ? 'text-bone/40' : 'text-ink-faint'}`}>
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-extrabold tracking-wider truncate uppercase">{file.name}</div>
+                          </div>
+                          <div className={`border px-1 py-0.5 font-mono text-[7px] shrink-0 transition-colors ${
+                            activeFileId === file.id ? 'border-bone/30 text-bone/40' : 'border-ink/20 text-ink-faint'
+                          }`}>HTML</div>
+                          <button
+                            onClick={e => { e.stopPropagation(); deleteFile(file.id) }}
+                            className="w-4 h-4 flex items-center justify-center font-mono text-[10px] opacity-0 group-hover:opacity-100 hover:bg-oxide hover:text-bone transition-all shrink-0"
+                          >✕</button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-ink bg-bone shrink-0">
+                      <MetricBar label="PRV" value={82} />
+                      <MetricBar label="EDT" value={activeFileId ? 94 : 0} />
+                      <MetricBar label="MEM" value={61} />
+                      <MetricBar label="TSK" value={14} />
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
 
-              {/* Metric rows */}
-              <div className="border-t border-ink bg-bone shrink-0">
-                <MetricRow label="PRV" value={82} />
-                <MetricRow label="EDT" value={isEditorOpen ? 94 : 0} />
-                <MetricRow label="MEM" value={48} />
-                <MetricRow label="TSK" value={14} />
-              </div>
-            </motion.aside>
-          )}
+                {/* ── Editor ── */}
+                {win.kind === 'editor' && (
+                  <div className="h-full flex flex-col bg-paper">
+                    <div className="h-7 flex items-stretch border-b border-ink bg-bone-dim shrink-0">
+                      {(['html', 'css', 'js'] as const).map(tab => (
+                        <button
+                          key={tab}
+                          onClick={() => setEditorTab(tab)}
+                          className={`px-4 flex items-center font-mono text-[8px] font-bold tracking-[0.2em] border-r border-ink transition-colors uppercase ${
+                            editorTab === tab ? 'bg-paper text-ink' : 'text-ink/40 hover:bg-ink/5'
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                      <div className="flex-1 flex items-center justify-end px-2">
+                        <span className="font-mono text-[7px] text-ink-faint truncate max-w-[120px]">
+                          {activeFile?.name ?? 'untitled'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0">
+                      {editorTab === 'html' && (
+                        <CodeEditor label="HTML" language="html" value={html} onChange={setHtml} />
+                      )}
+                      {editorTab === 'css' && (
+                        <CodeEditor label="CSS" language="css" value={css} onChange={setCss} />
+                      )}
+                      {editorTab === 'js' && (
+                        <CodeEditor label="JS" language="javascript" value={js} onChange={setJs} />
+                      )}
+                    </div>
+
+                    <div className="h-7 border-t border-ink bg-bone flex items-stretch divide-x divide-ink shrink-0 font-mono text-[8px] tracking-widest uppercase">
+                      <button className="flex-1 hover:bg-ink hover:text-bone transition-colors">Format</button>
+                      <button className="px-4 bg-oxide text-bone font-bold hover:opacity-90 transition-opacity">Save</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Preview ── */}
+                {win.kind === 'preview' && (
+                  <div className="h-full flex flex-col bg-[#0b0c0c] relative">
+                    <div
+                      className="absolute inset-0 pointer-events-none opacity-15"
+                      style={{
+                        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.45) 1px, transparent 1px)',
+                        backgroundSize: '32px 32px',
+                      }}
+                    />
+                    <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-white/20 pointer-events-none z-10" />
+                    <div className="absolute top-3 right-3 w-3 h-3 border-t border-r border-white/20 pointer-events-none z-10" />
+                    <div className="absolute bottom-3 left-3 w-3 h-3 border-b border-l border-white/20 pointer-events-none z-10" />
+                    <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-white/20 pointer-events-none z-10" />
+
+                    <div className="h-6 border-b border-white/10 flex items-center px-3 gap-3 font-mono text-[7px] tracking-[0.2em] text-white/40 shrink-0 z-10">
+                      <span className="font-bold text-white/60 uppercase">Render</span>
+                      <span className="opacity-30">/</span>
+                      <span className="truncate uppercase">{activeFile?.name ?? 'no file'}</span>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                        <span>Live</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 relative z-10">
+                      <LivePreview html={html} css={css} js={js} />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Console ── */}
+                {win.kind === 'console' && (
+                  <div className="h-full bg-[#080808] font-mono text-[10px] p-4 overflow-auto">
+                    <p className="text-white/20 tracking-[0.2em] uppercase">-- op-lab system console --</p>
+                    <p className="mt-2 text-green-400">READY :: AWAITING INPUT</p>
+                    <div className="mt-4 flex gap-2 items-center text-green-400">
+                      <span className="text-white/30">{'>'}</span>
+                      <div className="w-2 h-4 bg-green-400 animate-pulse" />
+                    </div>
+                  </div>
+                )}
+              </DesktopWindow>
+            </motion.div>
+          ))}
         </AnimatePresence>
-
-        {/* Sidebar open strip */}
-        {!isSidebarOpen && (
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="w-4 border-r border-ink bg-bone-dim flex items-center justify-center text-ink hover:bg-ink hover:text-bone transition-colors shrink-0"
-          >
-            <ChevronRight size={10} />
-          </button>
-        )}
-
-        {/* Center canvas */}
-        <section className="flex-1 flex flex-col min-w-0">
-
-          {/* Preview header bar */}
-          <div className="h-7 border-b border-ink bg-bone-soft flex items-center px-3 gap-3 font-mono text-[9px] tracking-widest shrink-0">
-            <span className="text-ink/50 font-bold">▶</span>
-            <span className="font-bold uppercase text-[8px]">Live Workspace</span>
-            <span className="text-ink/30">/</span>
-            <span className="text-ink/50 truncate uppercase text-[8px]">{title}.html</span>
-            <div className="ml-auto flex items-center h-full divide-x divide-ink/20">
-              <button className="px-2 h-full text-ink/40 hover:bg-ink hover:text-bone transition-colors text-[8px] uppercase tracking-widest">Grid</button>
-              <button className="px-2 h-full text-ink/40 hover:bg-ink hover:text-bone transition-colors text-[8px] uppercase tracking-widest">Fit</button>
-              <button className="px-2 h-full text-ink/40 hover:bg-ink hover:text-bone transition-colors text-[8px] uppercase tracking-widest">↺</button>
-            </div>
-          </div>
-
-          {/* Dark preview chamber */}
-          <div className="flex-1 bg-[#0f1110] relative overflow-hidden">
-            {/* Dot grid */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-20"
-              style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)', backgroundSize: '40px 40px' }}
-            />
-            {/* Scanlines */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.1) 50%)', backgroundSize: '100% 4px' }}
-            />
-            {/* Corner markers */}
-            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/25 pointer-events-none" />
-            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/25 pointer-events-none" />
-            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/25 pointer-events-none" />
-            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/25 pointer-events-none" />
-
-            {/* Preview iframe fills chamber */}
-            <div className="absolute inset-0">
-              <LivePreview html={html} css={css} js={js} />
-            </div>
-          </div>
-
-          {/* Preview footer bar */}
-          <div className="h-7 border-t border-ink bg-bone-dim flex items-center divide-x divide-ink font-mono text-[8px] tracking-widest shrink-0">
-            <div className="flex-1 flex items-center px-3 gap-3 text-ink/50">
-              <div className="w-1.5 h-1.5 bg-ink animate-[pulse_2s_steps(2,end)_infinite]" />
-              <span className="uppercase">render locked · stable</span>
-            </div>
-            <div className="px-3 text-ink/40 uppercase">Zoom 100%</div>
-            <div className="px-3 text-ink/30 uppercase">Auto-Fit</div>
-          </div>
-        </section>
-
-        {/* Right editor panel */}
-        <AnimatePresence initial={false}>
-          {isEditorOpen && (
-            <motion.aside
-              initial={{ x: 300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 300, opacity: 0 }}
-              transition={{ type: 'spring', damping: 22, stiffness: 120 }}
-              className="w-[300px] border-l border-ink bg-paper flex flex-col shrink-0 overflow-hidden"
-            >
-              {/* Editor panel header */}
-              <div
-                className="h-[var(--spacing-bar)] border-b border-ink bg-ink text-bone flex items-center justify-between px-3 cursor-pointer select-none shrink-0"
-                onClick={() => setIsEditorOpen(false)}
-              >
-                <div>
-                  <div className="font-mono text-[8px] tracking-[0.18em] text-bone/50 mb-0.5">terminal · raw code</div>
-                  <div className="font-sans font-black text-[11px] tracking-[0.14em]">Source Engineering</div>
-                </div>
-                <ChevronRight size={12} />
-              </div>
-
-              {/* Three editors, equal thirds */}
-              <div className="flex-1 flex flex-col min-h-0 divide-y divide-ink/20">
-                <div className="flex-1 min-h-0">
-                  <CodeEditor label="STRUCT · HTML" language="html" value={html} onChange={setHtml} />
-                </div>
-                <div className="flex-1 min-h-0">
-                  <CodeEditor label="VISUAL · CSS" language="css" value={css} onChange={setCss} />
-                </div>
-                <div className="flex-1 min-h-0">
-                  <CodeEditor label="LOGIC · JS" language="javascript" value={js} onChange={setJs} />
-                </div>
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
-
-        {/* Editor open strip */}
-        {!isEditorOpen && (
-          <button
-            onClick={() => setIsEditorOpen(true)}
-            className="w-4 border-l border-ink bg-bone-dim flex items-center justify-center text-ink hover:bg-ink hover:text-bone transition-colors shrink-0"
-          >
-            <ChevronLeft size={10} />
-          </button>
-        )}
       </div>
+
+      {/* Launcher */}
+      <AnimatePresence>
+        {launcherOpen && (
+          <motion.div
+            initial={{ y: 12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 12, opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            className="absolute bottom-[var(--spacing-bar)] left-0 w-72 bg-paper border border-ink border-b-0 z-[200] flex flex-col overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="h-10 bg-ink text-bone flex flex-col justify-center px-3 border-b border-white/5 shrink-0">
+              <span className="font-mono text-[7px] tracking-[0.18em] text-bone/40 uppercase">System Core · v3</span>
+              <span className="font-sans font-black text-[12px] tracking-widest uppercase">OP-LAB OS</span>
+            </div>
+            {LAUNCHER_ACTIONS.map((cmd, i) => (
+              <button
+                key={i}
+                onClick={() => { cmd.action(); setLauncherOpen(false) }}
+                className="h-9 flex items-center justify-between px-3 border-b border-ink/10 last:border-b-0 hover:bg-ink hover:text-bone font-mono text-[9px] tracking-widest uppercase transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-ink-faint">{String(i + 1).padStart(2, '0')}</span>
+                  <span>{cmd.label}</span>
+                </div>
+                <span className="text-ink-faint opacity-40">↵</span>
+              </button>
+            ))}
+            <div className="h-8 grid grid-cols-2 divide-x divide-ink border-t border-ink shrink-0 font-mono text-[8px] tracking-widest uppercase">
+              <button className="hover:bg-ink hover:text-bone transition-colors">Sleep</button>
+              <button onClick={() => setLauncherOpen(false)} className="bg-oxide text-bone font-bold hover:opacity-90 transition-opacity">Close</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Taskbar */}
+      <footer className="h-[var(--spacing-bar)] bg-bone-dim border-t border-ink flex items-stretch shrink-0 z-50 font-mono text-[8px] tracking-[0.15em] uppercase divide-x divide-ink">
+        <button
+          onClick={e => { e.stopPropagation(); setLauncherOpen(o => !o) }}
+          className={`w-28 flex items-center gap-2 px-3 transition-colors shrink-0 ${
+            launcherOpen ? 'bg-oxide text-bone' : 'bg-ink text-bone hover:brightness-110'
+          }`}
+        >
+          <Command size={11} />
+          <span className="font-sans font-extrabold text-[9px]">Launch</span>
+        </button>
+
+        <div className="flex-1 flex items-center px-2 gap-1.5 overflow-x-auto min-w-0">
+          {windows.map(win => (
+            <button
+              key={win.id}
+              onClick={() => focusWindow(win.id)}
+              className={`h-[18px] px-2.5 flex items-center gap-1.5 border shrink-0 transition-all font-mono text-[7px] tracking-wider uppercase ${
+                win.focused && !win.minimized
+                  ? 'border-ink bg-bone text-ink'
+                  : 'border-ink/20 text-ink/40 hover:bg-ink/5'
+              } ${win.minimized ? 'opacity-40' : ''}`}
+            >
+              <div className={`w-1 h-1 shrink-0 ${win.focused && !win.minimized ? 'bg-ink' : 'bg-ink/20'}`} />
+              <span className="truncate max-w-[96px]">{win.title}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="px-3 flex items-center gap-2 text-ink-faint shrink-0">
+          <div className="w-1 h-1 bg-ink animate-[pulse_2s_steps(2,end)_infinite]" />
+          <span>{time}</span>
+        </div>
+      </footer>
     </div>
   )
 }
