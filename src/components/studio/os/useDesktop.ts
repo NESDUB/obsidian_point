@@ -53,9 +53,13 @@ export function useDesktop() {
           : { ...w, focused: false }
         )
       }
-      const n = prev.filter(w => !w.minimized).length
+      // Only one preview window at a time — close any other preview before opening a new one
+      const base = kind === 'preview'
+        ? prev.filter(w => w.kind !== 'preview')
+        : prev
+      const n = base.filter(w => !w.minimized).length
       return [
-        ...prev.map(w => ({ ...w, focused: false })),
+        ...base.map(w => ({ ...w, focused: false })),
         {
           id, kind,
           title: title ?? kind,
@@ -63,7 +67,7 @@ export function useDesktop() {
           x: 48 + (n % 6) * 28,
           y: 48 + (n % 6) * 22,
           ...SIZES[kind],
-          z: nextZ(prev),
+          z: nextZ(base),
           minimized: false,
           maximized: false,
           focused: true,
