@@ -53,9 +53,9 @@ export function useDesktop() {
           : { ...w, focused: false }
         )
       }
-      // Only one preview window at a time — close any other preview before opening a new one
-      const base = kind === 'preview'
-        ? prev.filter(w => w.kind !== 'preview')
+      // Only one preview/editor window at a time — close the old one before opening a new file
+      const base = (kind === 'preview' || kind === 'editor')
+        ? prev.filter(w => w.kind !== kind)
         : prev
       const n = base.filter(w => !w.minimized).length
       return [
