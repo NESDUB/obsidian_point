@@ -18,6 +18,8 @@ export type SearchResult = {
   role: string;
   abstract?: string;
   score: number;
+  openJSON: string;
+  openMarkdown: string;
 };
 
 export type SearchResponse = {
@@ -26,6 +28,18 @@ export type SearchResponse = {
   total: number;
   results: SearchResult[];
 };
+
+// ── URL helpers ────────────────────────────────────────────────────────────────
+
+const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL
+  || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://obsidianpoint.co");
+
+function openUrls(path: string): { openJSON: string; openMarkdown: string } {
+  return {
+    openJSON: `${SITE_BASE}/r/apple-docs/poc/open/${path}?format=json`,
+    openMarkdown: `${SITE_BASE}/r/apple-docs/poc/open/${path}?format=markdown`,
+  };
+}
 
 // ── Index loading (filesystem) ─────────────────────────────────────────────────
 
@@ -200,6 +214,7 @@ export async function search(
         role: s.entry.r,
         abstract: s.entry.a,
         score: s.score,
+        ...openUrls(s.entry.p),
       })),
     };
   }
@@ -240,6 +255,7 @@ export async function search(
             role: entry.r,
             abstract: entry.a,
             score,
+            ...openUrls(entry.p),
           });
         }
       }
