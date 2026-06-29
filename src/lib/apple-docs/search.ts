@@ -22,9 +22,12 @@ export type SearchResult = {
   openMarkdown: string;
 };
 
+export type SearchMode = "any" | "all";
+
 export type SearchResponse = {
   query: string;
   framework?: string;
+  mode: SearchMode;
   total: number;
   results: SearchResult[];
 };
@@ -182,55 +185,68 @@ function matchFrameworks(
   return scored.sort((a, b) => b.score - a.score).map(s => s.name);
 }
 
-export async function search(
+// ── Mode: all — every token must appear somewhere in the entry ─────────────────
+
+function matchesAll(entry: IndexEntry, queryTokens: string[]): boolean {
+  const haystack = `${entry.t} ${entry.p} ${entry.a || ""}`.toLowerCase();
+  return queryTokens.every(qt => haystack.includes(qt));
+}
+
+// ── Core search against a list of entries ──────────────────────────────────────
+
+function searchEntries(
+  entries: IndexEntry[],
+  fw: string,
+  queryTokens: string[],
+  queryLower: string,
+  mode: SearchMode,
+): SearchResult[] {
+  const results: SearchResult[] = [];
+  for (const entry of entries) {
+    if (mode === "all" && !matchesAll(entry, queryTokens)) continue;
+    const score = scoreEntry(entry, queryTokens, queryLower);
+    if (score > 0) {
+      results.push({
+        title: entry.t,
+        framework: fw,
+        path: entry.p,
+        role: entry.r,
+        abstract: entry.a,
+        score,
+        ...openUrls(entry.p),
+      });
+    }
+  }
+  return results;
+}
+
+// ── mode=any with multiple terms: split on comma/pipe, run each, merge ─────────
+
+function splitTerms(query: string): string[] {
+  return query.split(/[,|]/).map(t => t.trim()).filter(Boolean);
+}
+
+async function searchSingleQuery(
   query: string,
-  framework?: string,
-  limit = 20,
-): Promise<SearchResponse> {
+  framework: string | undefined,
+  mode: SearchMode,
+  limit: number,
+): Promise<SearchResult[]> {
   const queryLower = query.toLowerCase().trim();
   const queryTokens = camelTokens(query);
 
   if (framework) {
-    // Search a single framework
     const entries = await loadFrameworkIndex(framework);
-    if (!entries) {
-      return { query, framework, total: 0, results: [] };
-    }
-
-    const scored = entries
-      .map(e => ({ entry: e, score: scoreEntry(e, queryTokens, queryLower) }))
-      .filter(s => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-
-    return {
-      query,
-      framework,
-      total: scored.length,
-      results: scored.map(s => ({
-        title: s.entry.t,
-        framework,
-        path: s.entry.p,
-        role: s.entry.r,
-        abstract: s.entry.a,
-        score: s.score,
-        ...openUrls(s.entry.p),
-      })),
-    };
+    if (!entries) return [];
+    return searchEntries(entries, framework, queryTokens, queryLower, mode);
   }
 
-  // Cross-framework search: find matching frameworks, then search top ones
+  // Cross-framework search
   const manifest = await loadManifest();
-  if (!manifest) {
-    return { query, total: 0, results: [] };
-  }
+  if (!manifest) return [];
 
-  // Find frameworks whose names match the query
   const matchedFrameworks = matchFrameworks(manifest, queryTokens, queryLower);
-
-  // Always search the top matched frameworks, plus a few large popular ones as fallbacks
   const toSearch = new Set(matchedFrameworks.slice(0, 5));
-  // If few framework matches, add some popular defaults
   if (toSearch.size < 3) {
     for (const fw of ["SwiftUI", "Foundation", "UIKit", "AppKit", "Swift"]) {
       if (manifest[fw]) toSearch.add(fw);
@@ -239,35 +255,48 @@ export async function search(
   }
 
   const allResults: SearchResult[] = [];
-
   await Promise.all(
     [...toSearch].map(async (fw) => {
       const entries = await loadFrameworkIndex(fw);
       if (!entries) return;
-
-      for (const entry of entries) {
-        const score = scoreEntry(entry, queryTokens, queryLower);
-        if (score > 0) {
-          allResults.push({
-            title: entry.t,
-            framework: fw,
-            path: entry.p,
-            role: entry.r,
-            abstract: entry.a,
-            score,
-            ...openUrls(entry.p),
-          });
-        }
-      }
+      allResults.push(...searchEntries(entries, fw, queryTokens, queryLower, mode));
     })
   );
 
+  return allResults;
+}
+
+export async function search(
+  query: string,
+  framework?: string,
+  limit = 20,
+  mode: SearchMode = "any",
+): Promise<SearchResponse> {
+  const terms = splitTerms(query);
+
+  // Multiple comma/pipe-separated terms in "any" mode → batch search each term independently
+  if (mode === "any" && terms.length > 1) {
+    const seen = new Set<string>();
+    const merged: SearchResult[] = [];
+
+    for (const term of terms) {
+      const results = await searchSingleQuery(term, framework, "any", limit);
+      for (const r of results) {
+        if (!seen.has(r.path)) {
+          seen.add(r.path);
+          merged.push(r);
+        }
+      }
+    }
+
+    merged.sort((a, b) => b.score - a.score);
+    const results = merged.slice(0, limit);
+    return { query, framework, mode, total: results.length, results };
+  }
+
+  // Single query (or mode=all which treats the full query as one unit)
+  const allResults = await searchSingleQuery(query, framework, mode, limit);
   allResults.sort((a, b) => b.score - a.score);
   const results = allResults.slice(0, limit);
-
-  return {
-    query,
-    total: results.length,
-    results,
-  };
+  return { query, framework, mode, total: results.length, results };
 }
