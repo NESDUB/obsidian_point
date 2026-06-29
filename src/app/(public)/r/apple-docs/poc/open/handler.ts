@@ -21,7 +21,7 @@ export async function handleOpenRequest(request: NextRequest, input: string) {
       status: 200,
       headers: {
         ...commonHeaders,
-        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Type": "text/plain; charset=utf-8",
       },
     });
   } catch (error) {
@@ -41,7 +41,7 @@ export async function handleOpenRequest(request: NextRequest, input: string) {
       status,
       headers: {
         ...commonHeaders,
-        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Type": "text/plain; charset=utf-8",
       },
     });
   }
