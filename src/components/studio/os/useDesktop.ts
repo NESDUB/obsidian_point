@@ -53,13 +53,9 @@ export function useDesktop() {
           : { ...w, focused: false }
         )
       }
-      // Only one preview/editor window at a time — close the old one before opening a new file
-      const base = (kind === 'preview' || kind === 'editor')
-        ? prev.filter(w => w.kind !== kind)
-        : prev
-      const n = base.filter(w => !w.minimized).length
+      const n = prev.filter(w => !w.minimized).length
       return [
-        ...base.map(w => ({ ...w, focused: false })),
+        ...prev.map(w => ({ ...w, focused: false })),
         {
           id, kind,
           title: title ?? kind,
@@ -67,7 +63,7 @@ export function useDesktop() {
           x: 48 + (n % 6) * 28,
           y: 48 + (n % 6) * 22,
           ...SIZES[kind],
-          z: nextZ(base),
+          z: nextZ(prev),
           minimized: false,
           maximized: false,
           focused: true,

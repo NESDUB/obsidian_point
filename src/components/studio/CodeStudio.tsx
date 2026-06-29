@@ -203,15 +203,22 @@ export default function CodeStudio({
         {/* Windows */}
         <AnimatePresence>
           {windows.map(win => (
-            <DesktopWindow
+            <motion.div
               key={win.id}
-              win={win}
-              onClose={closeWindow}
-              onFocus={focusWindow}
-              onMinimize={toggleMinimize}
-              onMaximize={toggleMaximize}
-              onMove={moveWindow}
+              initial={{ scale: 0.94, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240, duration: 0.15 }}
+              style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: win.z }}
             >
+              <DesktopWindow
+                win={win}
+                onClose={closeWindow}
+                onFocus={focusWindow}
+                onMinimize={toggleMinimize}
+                onMaximize={toggleMaximize}
+                onMove={moveWindow}
+              >
                 {/* ── Registry ── */}
                 {win.kind === 'registry' && (
                   <div className="h-full flex flex-col bg-paper">
@@ -362,6 +369,7 @@ export default function CodeStudio({
                   </div>
                 )}
               </DesktopWindow>
+            </motion.div>
           ))}
         </AnimatePresence>
       </div>
