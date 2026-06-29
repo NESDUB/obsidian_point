@@ -16,17 +16,18 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Math.max(parseInt(params.get("limit") ?? "20", 10) || 20, 1), 100);
   const modeParam = params.get("mode")?.trim().toLowerCase();
   const mode: SearchMode = modeParam === "all" ? "all" : "any";
+  const collapse = params.get("collapse") === "parent";
 
   if (!query) {
     return NextResponse.json(
       {
         error: "Missing required parameter: q",
-        usage: "/r/apple-docs/search?q=SpeechAnalyzer&framework=Speech&limit=20&mode=any",
+        usage: "/r/apple-docs/search?q=SpeechAnalyzer&framework=Speech&limit=20&mode=any&collapse=parent",
       },
       { status: 400, headers: commonHeaders },
     );
   }
 
-  const results = await search(query, framework, limit, mode);
+  const results = await search(query, framework, limit, mode, collapse);
   return NextResponse.json(results, { headers: commonHeaders });
 }

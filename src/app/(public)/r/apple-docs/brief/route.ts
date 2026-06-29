@@ -16,19 +16,20 @@ export async function GET(request: NextRequest) {
   const framework = params.get("framework")?.trim() || undefined;
   const openCount = Math.min(Math.max(parseInt(params.get("open") ?? "3", 10) || 3, 1), 5);
   const resultCount = Math.min(Math.max(parseInt(params.get("limit") ?? "8", 10) || 8, 1), 20);
+  const collapse = params.get("collapse") === "parent";
 
   if (!query) {
     return NextResponse.json(
       {
         error: "Missing required parameter: q",
-        usage: "/r/apple-docs/brief?q=SpeechAnalyzer&framework=Speech&open=3&limit=8",
+        usage: "/r/apple-docs/brief?q=SpeechAnalyzer&framework=Speech&open=3&limit=8&collapse=parent",
       },
       { status: 400, headers: commonHeaders },
     );
   }
 
-  // Step 1: Search
-  const searchResults = await search(query, framework, resultCount);
+  // Step 1: Search (collapse nested symbols when requested)
+  const searchResults = await search(query, framework, resultCount, "any", collapse);
 
   // Step 2: Live-fetch top results from Apple
   const toOpen = searchResults.results.slice(0, openCount);
