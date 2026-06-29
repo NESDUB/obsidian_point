@@ -27,32 +27,26 @@ export type SearchResponse = {
   results: SearchResult[];
 };
 
-// ── Index loading ──────────────────────────────────────────────────────────────
+// ── Index loading (filesystem) ─────────────────────────────────────────────────
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
-function indexUrl(file: string): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-  return `${base}/apple-docs-index/${encodeURIComponent(file)}`;
+function indexPath(file: string): string {
+  return join(process.cwd(), "public", "apple-docs-index", file);
 }
 
-// Simple in-memory cache to avoid re-fetching within the same function instance
-const cache = new Map<string, { data: unknown; ts: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// In-memory cache — persists across requests within the same function instance
+const cache = new Map<string, unknown>();
 
-async function fetchJson<T>(url: string): Promise<T | null> {
-  const now = Date.now();
-  const cached = cache.get(url);
-  if (cached && now - cached.ts < CACHE_TTL) return cached.data as T;
+async function loadJson<T>(file: string): Promise<T | null> {
+  const cached = cache.get(file);
+  if (cached) return cached as T;
 
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json() as T;
-    cache.set(url, { data, ts: now });
+    const raw = await readFile(indexPath(file), "utf-8");
+    const data = JSON.parse(raw) as T;
+    cache.set(file, data);
     return data;
   } catch {
     return null;
@@ -60,11 +54,11 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 }
 
 async function loadManifest(): Promise<Record<string, ManifestEntry> | null> {
-  return fetchJson(indexUrl("_manifest.json"));
+  return loadJson("_manifest.json");
 }
 
 async function loadFrameworkIndex(framework: string): Promise<IndexEntry[] | null> {
-  return fetchJson(indexUrl(`${framework}.json`));
+  return loadJson(`${framework}.json`);
 }
 
 // ── Scoring ────────────────────────────────────────────────────────────────────
