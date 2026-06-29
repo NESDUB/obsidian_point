@@ -5,11 +5,33 @@
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-/** Compact index entry as stored in per-framework JSON files: {t, p, r, a?} */
-type IndexEntry = { t: string; p: string; r: string; a?: string };
+/** Compact index entry as stored in per-framework JSON files: {t, p, r, a?, v?, dep?, beta?} */
+type IndexEntry = {
+  t: string;
+  p: string;
+  r: string;
+  a?: string;
+  v?: Record<string, string>;
+  dep?: boolean;
+  beta?: boolean;
+};
 
 /** Manifest entry per framework */
 type ManifestEntry = { count: number; size: number };
+
+export type ScoreBreakdown = {
+  exactTitle: number;
+  titleStartsWith: number;
+  titleContains: number;
+  pathContains: number;
+  titleTokens: number;
+  allTokensBonus: number;
+  abstractTokens: number;
+  shortTitleBonus: number;
+  roleBoost: number;
+  deprecatedPenalty: number;
+  total: number;
+};
 
 export type SearchResult = {
   title: string;
@@ -20,6 +42,12 @@ export type SearchResult = {
   score: number;
   openJSON: string;
   openMarkdown: string;
+  availability?: Record<string, string>;
+  deprecated?: boolean;
+  beta?: boolean;
+  collapseGroup?: string;
+  collapsedChildren?: number;
+  scoreBreakdown?: ScoreBreakdown;
 };
 
 export type SearchMode = "any" | "all";
@@ -28,6 +56,8 @@ export type SearchResponse = {
   query: string;
   framework?: string;
   mode: SearchMode;
+  detectedIntent: string;
+  collapsed: boolean;
   total: number;
   results: SearchResult[];
 };
@@ -156,30 +186,37 @@ function camelTokens(s: string): string[] {
     .filter(Boolean);
 }
 
-function scoreEntry(entry: IndexEntry, queryTokens: string[], queryLower: string, intent: QueryIntent): number {
+type ScoreResult = { score: number; breakdown: ScoreBreakdown };
+
+function scoreEntry(entry: IndexEntry, queryTokens: string[], queryLower: string, intent: QueryIntent): ScoreResult {
   const titleLower = entry.t.toLowerCase();
   const pathLower = entry.p.toLowerCase();
   const abstractLower = (entry.a || "").toLowerCase();
   const titleTokens = camelTokens(entry.t);
 
-  let score = 0;
+  const bd: ScoreBreakdown = {
+    exactTitle: 0, titleStartsWith: 0, titleContains: 0,
+    pathContains: 0, titleTokens: 0, allTokensBonus: 0,
+    abstractTokens: 0, shortTitleBonus: 0, roleBoost: 0,
+    deprecatedPenalty: 0, total: 0,
+  };
 
   // Exact title match
   if (titleLower === queryLower) {
-    score += 100;
+    bd.exactTitle = 100;
   }
   // Title starts with query
   else if (titleLower.startsWith(queryLower)) {
-    score += 80;
+    bd.titleStartsWith = 80;
   }
   // Title contains query as substring
   else if (titleLower.includes(queryLower)) {
-    score += 60;
+    bd.titleContains = 60;
   }
 
   // Path contains query
   if (pathLower.includes(queryLower)) {
-    score += 20;
+    bd.pathContains = 20;
   }
 
   // Token matching — each query token matched in title tokens
@@ -187,60 +224,78 @@ function scoreEntry(entry: IndexEntry, queryTokens: string[], queryLower: string
   for (const qt of queryTokens) {
     if (titleTokens.some(tt => tt === qt)) {
       titleTokenMatches++;
-      score += 15;
+      bd.titleTokens += 15;
     } else if (titleTokens.some(tt => tt.startsWith(qt))) {
       titleTokenMatches++;
-      score += 10;
+      bd.titleTokens += 10;
     }
   }
 
   // Bonus for matching all query tokens in title
   if (queryTokens.length > 1 && titleTokenMatches === queryTokens.length) {
-    score += 25;
+    bd.allTokensBonus = 25;
   }
 
   // Abstract keyword matches
   for (const qt of queryTokens) {
     if (abstractLower.includes(qt)) {
-      score += 5;
+      bd.abstractTokens += 5;
     }
   }
 
+  let score = bd.exactTitle + bd.titleStartsWith + bd.titleContains
+    + bd.pathContains + bd.titleTokens + bd.allTokensBonus + bd.abstractTokens;
+
   // Slight boost for shorter titles (more specific symbols rank higher)
   if (score > 0 && entry.t.length < 40) {
-    score += 2;
+    bd.shortTitleBonus = 2;
   }
 
   // Role-aware boost based on query intent
   if (score > 0) {
-    score += roleBoost(entry.r, intent);
+    bd.roleBoost = roleBoost(entry.r, intent);
   }
 
-  return score;
+  // Penalise deprecated entries so current APIs rank higher
+  if (score > 0 && entry.dep) {
+    bd.deprecatedPenalty = -15;
+  }
+
+  score += bd.shortTitleBonus + bd.roleBoost + bd.deprecatedPenalty;
+  bd.total = score;
+
+  return { score, breakdown: bd };
 }
 
 // ── Collapse: group nested symbols under parent ──────────────────────────────
 
 function collapseResults(results: SearchResult[]): SearchResult[] {
-  // Group by parent path: "documentation/Speech/SpeechAnalyzer/Options/ModelRetention"
-  // → parent is "documentation/Speech/SpeechAnalyzer/Options"
-  // Keep the highest-scoring entry per parent group, but always keep top-level symbols.
-  const groups = new Map<string, SearchResult>();
+  const groups = new Map<string, { best: SearchResult; count: number }>();
 
   for (const r of results) {
-    // Find the "parent group key" — collapse anything deeper than framework/Symbol
     const parts = r.path.split("/");
     // documentation/Framework/Symbol = 3 parts → top-level, use full path as key
     // documentation/Framework/Symbol/Child/... = 4+ parts → group under first 3
     const key = parts.length > 3 ? parts.slice(0, 3).join("/") : r.path;
 
     const existing = groups.get(key);
-    if (!existing || r.score > existing.score) {
-      groups.set(key, r);
+    if (!existing) {
+      groups.set(key, { best: r, count: 1 });
+    } else {
+      existing.count++;
+      if (r.score > existing.best.score) {
+        existing.best = r;
+      }
     }
   }
 
-  return [...groups.values()].sort((a, b) => b.score - a.score);
+  return [...groups.values()]
+    .map(({ best, count }) => ({
+      ...best,
+      collapseGroup: best.path.split("/").slice(0, 3).join("/"),
+      collapsedChildren: count - 1,
+    }))
+    .sort((a, b) => b.score - a.score);
 }
 
 // ── Search ─────────────────────────────────────────────────────────────────────
@@ -291,11 +346,12 @@ function searchEntries(
   queryLower: string,
   mode: SearchMode,
   intent: QueryIntent,
+  debug: boolean,
 ): SearchResult[] {
   const results: SearchResult[] = [];
   for (const entry of entries) {
     if (mode === "all" && !matchesAll(entry, queryTokens)) continue;
-    const score = scoreEntry(entry, queryTokens, queryLower, intent);
+    const { score, breakdown } = scoreEntry(entry, queryTokens, queryLower, intent);
     if (score > 0) {
       results.push({
         title: entry.t,
@@ -305,6 +361,10 @@ function searchEntries(
         abstract: entry.a,
         score,
         ...openUrls(entry.p),
+        ...(entry.v ? { availability: entry.v } : {}),
+        ...(entry.dep ? { deprecated: true } : {}),
+        ...(entry.beta ? { beta: true } : {}),
+        ...(debug ? { scoreBreakdown: breakdown } : {}),
       });
     }
   }
@@ -317,25 +377,27 @@ function splitTerms(query: string): string[] {
   return query.split(/[,|]/).map(t => t.trim()).filter(Boolean);
 }
 
+type SingleQueryResult = { results: SearchResult[]; intent: QueryIntent };
+
 async function searchSingleQuery(
   query: string,
   framework: string | undefined,
   mode: SearchMode,
-  limit: number,
-): Promise<SearchResult[]> {
+  debug: boolean,
+): Promise<SingleQueryResult> {
   const queryLower = query.toLowerCase().trim();
   const queryTokens = camelTokens(query);
   const intent = detectIntent(queryLower, queryTokens);
 
   if (framework) {
     const entries = await loadFrameworkIndex(framework);
-    if (!entries) return [];
-    return searchEntries(entries, framework, queryTokens, queryLower, mode, intent);
+    if (!entries) return { results: [], intent };
+    return { results: searchEntries(entries, framework, queryTokens, queryLower, mode, intent, debug), intent };
   }
 
   // Cross-framework search
   const manifest = await loadManifest();
-  if (!manifest) return [];
+  if (!manifest) return { results: [], intent };
 
   const matchedFrameworks = matchFrameworks(manifest, queryTokens, queryLower);
   const toSearch = new Set(matchedFrameworks.slice(0, 5));
@@ -351,11 +413,11 @@ async function searchSingleQuery(
     [...toSearch].map(async (fw) => {
       const entries = await loadFrameworkIndex(fw);
       if (!entries) return;
-      allResults.push(...searchEntries(entries, fw, queryTokens, queryLower, mode, intent));
+      allResults.push(...searchEntries(entries, fw, queryTokens, queryLower, mode, intent, debug));
     })
   );
 
-  return allResults;
+  return { results: allResults, intent };
 }
 
 export async function search(
@@ -363,7 +425,8 @@ export async function search(
   framework?: string,
   limit = 20,
   mode: SearchMode = "any",
-  collapse = false,
+  collapse = true,
+  debug = false,
 ): Promise<SearchResponse> {
   const terms = splitTerms(query);
 
@@ -371,10 +434,12 @@ export async function search(
   if (mode === "any" && terms.length > 1) {
     const seen = new Set<string>();
     const merged: SearchResult[] = [];
+    let lastIntent: QueryIntent = "symbol";
 
     for (const term of terms) {
-      const results = await searchSingleQuery(term, framework, "any", limit);
-      for (const r of results) {
+      const { results: termResults, intent } = await searchSingleQuery(term, framework, "any", debug);
+      lastIntent = intent;
+      for (const r of termResults) {
         if (!seen.has(r.path)) {
           seen.add(r.path);
           merged.push(r);
@@ -385,13 +450,13 @@ export async function search(
     merged.sort((a, b) => b.score - a.score);
     const deduped = collapse ? collapseResults(merged) : merged;
     const results = deduped.slice(0, limit);
-    return { query, framework, mode, total: results.length, results };
+    return { query, framework, mode, detectedIntent: lastIntent, collapsed: collapse, total: results.length, results };
   }
 
   // Single query (or mode=all which treats the full query as one unit)
-  const allResults = await searchSingleQuery(query, framework, mode, limit);
+  const { results: allResults, intent } = await searchSingleQuery(query, framework, mode, debug);
   allResults.sort((a, b) => b.score - a.score);
   const deduped = collapse ? collapseResults(allResults) : allResults;
   const results = deduped.slice(0, limit);
-  return { query, framework, mode, total: results.length, results };
+  return { query, framework, mode, detectedIntent: intent, collapsed: collapse, total: results.length, results };
 }
