@@ -14,6 +14,8 @@ const sampleSearches = [
   { q: "liquid glass", framework: "SwiftUI" },
   { q: "guided generation", framework: "FoundationModels" },
   { q: "GlassEffectContainer" },
+  { q: "SpeechAnalyzer,SpeechTranscriber,DictationTranscriber", framework: "Speech", mode: "any" as const },
+  { q: "speech live audio", framework: "Speech", mode: "all" as const },
 ];
 
 const samplePaths = [
@@ -50,7 +52,7 @@ export default function AppleDocsGatewayPage() {
                 <span className="rounded-full bg-orange-400/20 px-2.5 py-1 text-xs font-bold text-orange-300">2</span>
                 <code className="text-sm font-semibold text-white">/r/apple-docs/search</code>
               </div>
-              <p className="mt-2 text-sm text-white/60">Discover doc paths. Fast metadata-only search with direct open URLs in results.</p>
+              <p className="mt-2 text-sm text-white/60">Discover doc paths. Fast metadata-only search with direct open URLs in results. Supports <code className="text-white/80">mode=any</code> (batch) and <code className="text-white/80">mode=all</code> (conjunctive).</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
               <div className="flex items-baseline gap-3">
@@ -95,15 +97,17 @@ export default function AppleDocsGatewayPage() {
           <h2 className="text-xl font-semibold">Sample searches</h2>
           <div className="mt-4 grid gap-3">
             {sampleSearches.map((s) => {
-              const params = new URLSearchParams({ q: s.q, ...(s.framework ? { framework: s.framework } : {}), limit: "5" });
+              const modeParam = "mode" in s && s.mode ? { mode: String(s.mode) } : {};
+              const params = new URLSearchParams({ q: s.q, ...(s.framework ? { framework: s.framework } : {}), ...modeParam, limit: "5" } as Record<string, string>);
               const briefParams = new URLSearchParams({ q: s.q, ...(s.framework ? { framework: s.framework } : {}), open: "2" });
+              const modeLabel = "mode" in s && s.mode ? ` mode=${s.mode}` : "";
               return (
-                <div key={s.q} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                <div key={s.q + modeLabel} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <code className="block text-sm text-white/80">
-                    q={s.q}{s.framework ? ` framework=${s.framework}` : ""}
+                    q={s.q}{s.framework ? ` framework=${s.framework}` : ""}{modeLabel}
                   </code>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <a className="rounded-full bg-white/10 px-3 py-2 text-xs font-medium text-white hover:bg-white/15" href={`/r/apple-docs/brief?${briefParams}`}>Brief</a>
+                    {!modeLabel && <a className="rounded-full bg-white/10 px-3 py-2 text-xs font-medium text-white hover:bg-white/15" href={`/r/apple-docs/brief?${briefParams}`}>Brief</a>}
                     <a className="rounded-full bg-white/10 px-3 py-2 text-xs font-medium text-white hover:bg-white/15" href={`/r/apple-docs/search?${params}`}>Search</a>
                   </div>
                 </div>

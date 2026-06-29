@@ -31,12 +31,17 @@ Returns: ranked search results + full markdown, headings, code blocks, related l
 Path discovery endpoint. Fast metadata-only search.
 
 Parameters:
-  q         (required) Search query
+  q         (required) Search query. Use commas or pipes to separate multiple terms in mode=any.
   framework (optional) Scope to one framework
   limit     (optional) Max results (1–100, default 20)
+  mode      (optional) Search mode: "any" (default) or "all"
+              mode=any: Comma/pipe-separated terms searched independently, results merged. Use for batch lookup.
+              mode=all: Every token must appear in the entry's title, path, or abstract. Use for conjunctive queries.
 
-Example:
-  /r/apple-docs/search?q=liquid+glass&limit=10
+Examples:
+  /r/apple-docs/search?q=SpeechAnalyzer&framework=Speech
+  /r/apple-docs/search?q=SpeechAnalyzer,SpeechTranscriber,DictationTranscriber&framework=Speech&mode=any
+  /r/apple-docs/search?q=speech+live+audio&framework=Speech&mode=all
 
 Returns: ranked results with title, framework, path, role, abstract, score, openJSON, openMarkdown URLs.
 
