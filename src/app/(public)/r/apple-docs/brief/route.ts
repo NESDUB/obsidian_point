@@ -62,7 +62,9 @@ async function openPage(path: string, source: "search" | "related"): Promise<Ope
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const query = params.get("q")?.trim() ?? "";
+  // Support repeated q params (?q=A&q=B&q=C) by joining with pipe.
+  const allQ = params.getAll("q").map(v => v.trim()).filter(Boolean);
+  const query = allQ.join("|");
   const framework = params.get("framework")?.trim() || undefined;
   const openCount = Math.min(Math.max(parseInt(params.get("open") ?? "3", 10) || 3, 1), 5);
   const resultCount = Math.min(Math.max(parseInt(params.get("limit") ?? "8", 10) || 8, 1), 20);

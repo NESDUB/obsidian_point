@@ -18,7 +18,8 @@ A research gateway for Apple Developer Documentation. Searches 344,851 pages acr
 Research endpoint. Searches + live-fetches top results in one call.
 
 Parameters:
-  q              (required) Search query. Examples: "SpeechAnalyzer", "liquid glass", "guided generation"
+  q              (required) Search query. Supports repeated q params for multiple terms: ?q=A&q=B&q=C
+                 Examples: "SpeechAnalyzer", "liquid glass", "guided generation"
   framework      (optional) Scope to one framework. Examples: "Speech", "SwiftUI", "FoundationModels"
   open           (optional) Number of top results to live-fetch (1–5, default 3)
   limit          (optional) Total search results to return (1–20, default 8)
@@ -35,18 +36,22 @@ Response includes "detectedIntent" (symbol/howto/sample/broad) and "collapsed" (
 Path discovery endpoint. Fast metadata-only search.
 
 Parameters:
-  q         (required) Search query. Use commas or pipes to separate multiple terms in mode=any.
+  q         (required) Search query. For multiple terms, use REPEATED q params (preferred) or pipe-separated values.
+              PREFERRED: ?q=GlassEffect&q=GlassEffectContainer&q=glassEffect (repeated q params, safest for all tools)
+              ALSO WORKS: ?q=GlassEffect|GlassEffectContainer|glassEffect (pipe-separated)
+              ALSO WORKS: ?q=GlassEffect,GlassEffectContainer,glassEffect (comma-separated)
+              NOTE: Avoid commas in URLs if your tool has URL safety restrictions. Use repeated q params instead.
   framework (optional) Scope to one framework
   limit     (optional) Max results (1–100, default 20)
   mode      (optional) Search mode: "any" (default) or "all"
-              mode=any: Comma/pipe-separated terms searched independently, results merged. Use for batch lookup.
+              mode=any: Multiple terms searched independently, results merged. Use for batch lookup.
               mode=all: Every token must appear in the entry's title, path, or abstract. Use for conjunctive queries.
   collapse  (optional) "parent" (default) collapses nested symbols. Set to "none" to disable.
   debug     (optional) Set to "score" to include scoreBreakdown for each result.
 
 Examples:
   /r/apple-docs/search?q=SpeechAnalyzer&framework=Speech
-  /r/apple-docs/search?q=SpeechAnalyzer,SpeechTranscriber,DictationTranscriber&framework=Speech&mode=any
+  /r/apple-docs/search?q=SpeechAnalyzer&q=SpeechTranscriber&q=DictationTranscriber&framework=Speech
   /r/apple-docs/search?q=speech+live+audio&framework=Speech&mode=all
   /r/apple-docs/search?q=GlassEffect&collapse=none
   /r/apple-docs/search?q=SpeechAnalyzer&framework=Speech&debug=score
@@ -109,6 +114,8 @@ Recommended workflow:
 
 3. For discovery, call:
    /r/apple-docs/search?q=<query>&limit=50
+   For multiple terms, use repeated q params (avoids comma/special-char issues in URLs):
+   /r/apple-docs/search?q=GlassEffect&q=GlassEffectContainer&q=glassEffect&limit=50
 
 4. For nested symbols/members, add:
    collapse=none

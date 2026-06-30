@@ -11,7 +11,10 @@ const commonHeaders = {
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const query = params.get("q")?.trim() ?? "";
+  // Support repeated q params (?q=A&q=B&q=C) by joining with pipe.
+  // Also supports comma/pipe-separated single q values.
+  const allQ = params.getAll("q").map(v => v.trim()).filter(Boolean);
+  const query = allQ.join("|");
   const framework = params.get("framework")?.trim() || undefined;
   const limit = Math.min(Math.max(parseInt(params.get("limit") ?? "20", 10) || 20, 1), 100);
   const modeParam = params.get("mode")?.trim().toLowerCase();
